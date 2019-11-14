@@ -1,0 +1,143 @@
+{
+  "resource": "/{proxy+}",
+  "path": "/hello/world",
+  "httpMethod": "POST",
+  "headers": {
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip, deflate",
+    "cache-control": "no-cache",
+    "CloudFront-Forwarded-Proto": "https",
+    "CloudFront-Is-Desktop-Viewer": "true",
+    "CloudFront-Is-Mobile-Viewer": "false",
+    "CloudFront-Is-SmartTV-Viewer": "false",
+    "CloudFront-Is-Tablet-Viewer": "false",
+    "CloudFront-Viewer-Country": "US",
+    "Content-Type": "application/json",
+    "headerName": "headerValue",
+    "Host": "gy415nuibc.execute-api.us-east-1.amazonaws.com",
+    "Postman-Token": "9f583ef0-ed83-4a38-aef3-eb9ce3f7a57f",
+    "User-Agent": "PostmanRuntime/2.4.5",
+    "Via": "1.1 d98420743a69852491bbdea73f7680bd.cloudfront.net (CloudFront)",
+    "X-Amz-Cf-Id": "pn-PWIJc6thYnZm5P0NMgOUglL1DYtl0gdeJky8tqsg8iS_sgsKD1A==",
+    "X-Forwarded-For": "54.240.196.186, 54.182.214.83",
+    "X-Forwarded-Port": "443",
+    "X-Forwarded-Proto": "https"
+  },
+  "multiValueHeaders": {
+    "Accept": [
+      "*/*"
+    ],
+    "Accept-Encoding": [
+      "gzip, deflate"
+    ],
+    "cache-control": [
+      "no-cache"
+    ],
+    "CloudFront-Forwarded-Proto": [
+      "https"
+    ],
+    "CloudFront-Is-Desktop-Viewer": [
+      "true"
+    ],
+    "CloudFront-Is-Mobile-Viewer": [
+      "false"
+    ],
+    "CloudFront-Is-SmartTV-Viewer": [
+      "false"
+    ],
+    "CloudFront-Is-Tablet-Viewer": [
+      "false"
+    ],
+    "CloudFront-Viewer-Country": [
+      "US"
+    ],
+    "Content-Type": [
+      "application/json"
+    ],
+    "headerName": [
+      "headerValue"
+    ],
+    "Host": [
+      "gy415nuibc.execute-api.us-east-1.amazonaws.com"
+    ],
+    "Postman-Token": [
+      "9f583ef0-ed83-4a38-aef3-eb9ce3f7a57f"
+    ],
+    "User-Agent": [
+      "PostmanRuntime/2.4.5"
+    ],
+    "Via": [
+      "1.1 d98420743a69852491bbdea73f7680bd.cloudfront.net (CloudFront)"
+    ],
+    "X-Amz-Cf-Id": [
+      "pn-PWIJc6thYnZm5P0NMgOUglL1DYtl0gdeJky8tqsg8iS_sgsKD1A=="
+    ],
+    "X-Forwarded-For": [
+      "54.240.196.186, 54.182.214.83"
+    ],
+    "X-Forwarded-Port": [
+      "443"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ]
+  },
+  "queryStringParameters": {
+    "toke": "aa2237",
+    "act": "save-one",
+    "id": "59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac",
+    "sku": "c03963c1-cdfb-4040-bfe5-8a60e9dd1a06",
+    "category": "HEMP",
+    "subcategory": "SMOKEABLE FLOWER",
+    "name": "Lifter",
+    "description": "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non.",
+    "price_integer": "100",
+    "price_fraction": "00",
+    "quantity": "1000",
+    "unit": "pound",
+    "owner": "marcus@wiesow.com",
+    "image_1": "https://hempconduit.s3.amazonaws.com/goods/images/59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac/hemp-1.jpg",
+    "image_2": "https://hempconduit.s3.amazonaws.com/goods/images/59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac/hemp-2.jpg",
+    "image_3": "https://hempconduit.s3.amazonaws.com/goods/images/59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac/hemp-3.jpg"
+  },
+  "multiValueQueryStringParameters": {
+    "name": [
+      "me"
+    ]
+  },
+  "pathParameters": {
+    "proxy": "hello/world"
+  },
+  "stageVariables": {
+    "stageVariableName": "stageVariableValue"
+  },
+  "requestContext": {
+    "accountId": "12345678912",
+    "resourceId": "roq9wj",
+    "stage": "testStage",
+    "requestId": "deef4878-7910-11e6-8f14-25afc3e9ae33",
+    "identity": {
+      "cognitoIdentityPoolId": "theCognitoIdentityPoolId",
+      "accountId": "theAccountId",
+      "cognitoIdentityId": "theCognitoIdentityId",
+      "caller": "theCaller",
+      "apiKey": "theApiKey",
+      "accessKey": "ANEXAMPLEOFACCESSKEY",
+      "sourceIp": "192.168.196.186",
+      "cognitoAuthenticationType": "theCognitoAuthenticationType",
+      "cognitoAuthenticationProvider": "theCognitoAuthenticationProvider",
+      "userArn": "theUserArn",
+      "userAgent": "PostmanRuntime/2.4.5",
+      "user": "theUser"
+    },
+    "authorizer": {
+      "principalId": "admin",
+      "clientId": 1,
+      "clientName": "Exata"
+    },
+    "resourcePath": "/{proxy+}",
+    "httpMethod": "POST",
+    "apiId": "gy415nuibc"
+  },
+  "body": ""
+}
