@@ -1,39 +1,96 @@
-.PHONY: clean build test package invoke update create call
+# This file was designed and developed to be used as an
+# interface for making various aspects of this software library.
+# For rapid development, use a local make file to override
+# environment variables prior to excuting source make commands.
 
-FUNCTION_NAME=
-EVENT=find
+# The API domain to make.
+DOMAIN=
 
+# Build properties, effecitvely final.
+SRC=main
+SRC_EXE=${SRC}
+SRC_ZIP=${SRC}.zip
+SRC_DIR=./cmd/${DOMAIN}/${SRC}.go
+ZIP_DIR=fileb://./${SRC_ZIP}
+TST_OUT=cp.out
+TST_DIR=./...
+TEMPLATE_YML_DIR=testdata/template.yml
+REQUEST_JSON_DIR=testdata/request.json
+
+# AWS Lambda Function (λƒ) properties.
+FUNCTION=
+HANDLER=
+RUNTIME=
+DESC=
+TIMEOUT=
+MEMORY=
+ROLE=
+ENV_VAR=
+
+# A phony target is one that is not really the name of a file, but rather a sequence of commands.
+# We use this practice to avoid potential naming conflicts with files in the home environment but
+# also improve performance by telling the SHELL that we do not expect the command to create a file.
+.PHONY: clean build package install test sam update create curl
+
+# Removes build and package artifacts.
 clean:
-	rm -f main;
-	rm -f main.zip;
+	rm -f ${TST_OUT};
+	rm -f ${SRC_ZIP};
+	rm -f ${SRC_EXE};
 
+# Tests the entire project and outputs a coverage profile.
 test:
-	USER_TABLE=${USER_TABLE}
-	go test -coverprofile cp.out ./...
+	go test -coverprofile ${TST_OUT} ${TST_DIR}
 
+# Builds the source executable from a specified path.
 build:
-	GOOS=linux GOARCH=amd64 go build -o main ./cmd/main.go
+	GOOS=linux GOARCH=amd64 go build -o ${SRC_EXE} ${SRC_DIR}
 
+# Packages the executable into a zip file.
+# -9 compress better
+# -r recurse into directories
 package: build
-	zip -9 -r main.zip main
+	zip -9 -r ${SRC_ZIP} ${SRC_EXE}
 
-invoke: build
-	sam local invoke -e testdata/${EVENT}.json ${NAME} | jq
+# Executes test, build, package and `sam local invoke`.
+# -t path to required template.[yaml|yml] file
+# -e path to optional JSON file containing event data
+invoke: test build package
+	sam local invoke \
+		-t ${TEMPLATE_YML_DIR} \
+		-e ${REQUEST_JSON_DIR} \
+		${FUNCTION}
 
-update: package
-	aws lambda update-function-code --function-name ${NAME} --zip-file fileb://./handler.zip;\
-	aws lambda update-function-configuration --function-name ${NAME} --handler main
+# Updates λƒ code with freshly packaged source.
+update-code: package
+	aws lambda update-function-code \
+		--function-name ${FUNCTION} \
+		--zip-file ${ZIP_DIR}
 
+# Updates λƒ  configuration with variable values.
+update-conf:
+	aws lambda update-function-configuration \
+		--function-name ${FUNCTION} \
+		--role ${ROLE} \
+		--handler ${HANDLER} \
+		--description ${DESC}
+		--timeout ${TIMEOUT} \
+		--memory-size ${MEMORY} \
+		--environment ${ENV_VAR} \
+		--runtime ${RUNTIME}
+
+# Helper command to update λƒ code and configuration.
+update: update-code update-conf
+
+# Creates an AWS Lambda Function (λƒ).
 create: package
 	aws lambda create-function \
-		--function-name ${NAME} \
-		--description \
-		--role ${ROLE} \
-		--zip-file fileb://./handler.zip \
-		--handler handler \
-		--runtime go1.x \
-		--memory-size 512 \
-		--timeout 30;
-
-call:
-	curl -v "https://i5a2n7eqb0.execute-api.us-east-1.amazonaws.com/dev?cmd=find" | jq;
+		--function-name ${FUNCTION} \
+		--runtime ${RUNTIME} \
+		--role ${ROLE}
+		--handler ${HANDLER} \
+		--description ${DESC} \
+		--zip-file ${ZIP_DIR} \
+		--memory-size ${MEMORY} \
+		--timeout ${TIMEOUT} \
+		--environment ${ENV_VAR}

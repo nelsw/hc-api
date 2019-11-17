@@ -25,7 +25,8 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		var uc model.UserCredentials
 		if err := json.Unmarshal([]byte(r.Body), &uc); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-			// todo - uc validation
+		} else if err := uc.Validate(); err != nil {
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if user, err := repo.FindUserByEmail(uc.Email); err != nil {
 			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
 		} else if up, err := repo.FindUserPasswordById(&user.ProfileId); err != nil {

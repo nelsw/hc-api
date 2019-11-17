@@ -83,22 +83,7 @@
     ]
   },
   "queryStringParameters": {
-    "toke": "aa2237",
-    "act": "save-one",
-    "id": "59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac",
-    "sku": "c03963c1-cdfb-4040-bfe5-8a60e9dd1a06",
-    "category": "HEMP",
-    "subcategory": "SMOKEABLE FLOWER",
-    "name": "Lifter",
-    "description": "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non.",
-    "price_integer": "100",
-    "price_fraction": "00",
-    "quantity": "1000",
-    "unit": "pound",
-    "owner": "marcus@wiesow.com",
-    "image_1": "https://hempconduit.s3.amazonaws.com/goods/images/59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac/hemp-1.jpg",
-    "image_2": "https://hempconduit.s3.amazonaws.com/goods/images/59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac/hemp-2.jpg",
-    "image_3": "https://hempconduit.s3.amazonaws.com/goods/images/59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac/hemp-3.jpg"
+    "cmd": "find-all"
   },
   "multiValueQueryStringParameters": {
     "name": [
@@ -139,5 +124,8 @@
     "httpMethod": "POST",
     "apiId": "gy415nuibc"
   },
-  "body": ""
+  "body": {
+    "email": "connor@wiesow.com",
+    "password": "Pass123!"
+  }
 }

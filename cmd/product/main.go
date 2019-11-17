@@ -17,7 +17,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	switch cmd {
 
-	case "find":
+	case "find-all":
 		if products, err := repo.FindAllProducts(); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {

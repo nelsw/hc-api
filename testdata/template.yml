@@ -1,13 +1,13 @@
 Transform: AWS::Serverless-2016-10-31
-Description: Hemp Conduit User Handler
+Description: ""
 Resources:
   handler:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: go1.x
-      Handler: handler
+      Handler: ""
       CodeUri: .
-      Timeout: 30
-      MemorySize: 512
+      Timeout: ""
+      MemorySize: ""
       Environment:
         Variables:
