@@ -21,8 +21,12 @@ func init() {
 	}
 }
 
-func Scan(tableName *string) (*dynamodb.ScanOutput, error) {
-	return db.Scan(&dynamodb.ScanInput{TableName: tableName})
+func ScanTable(s *string) (*dynamodb.ScanOutput, error) {
+	return db.Scan(&dynamodb.ScanInput{TableName: s})
+}
+
+func Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error) {
+	return db.Scan(input)
 }
 
 func GetItem(key map[string]*dynamodb.AttributeValue, tableName *string) (*dynamodb.GetItemOutput, error) {

@@ -21,7 +21,15 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if products, err := repo.FindAllProducts(); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(products).Build()
+			return response.New().Code(http.StatusOK).Data(&products).Build()
+		}
+
+	case "find-by-owner":
+		s := r.QueryStringParameters["owner"]
+		if products, err := repo.FindAllProductsByOwner(&s); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		} else {
+			return response.New().Code(http.StatusOK).Data(&products).Build()
 		}
 
 	case "create":

@@ -7,7 +7,7 @@ wip
     - [ ] register
 - product  
     - [X] find-all
-    - [ ] find-by-owner
+    - [X] find-by-owner
 - address
     - [ ] find-by-ids
 - order

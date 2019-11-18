@@ -1,7 +1,9 @@
 package repo
 
 import (
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"hc-api/model"
 	"hc-api/repo/dynamo"
 	"os"
@@ -10,7 +12,7 @@ import (
 var productTable = os.Getenv("PRODUCT_TABLE")
 
 func FindAllProducts() ([]model.Product, error) {
-	if result, err := dynamo.Scan(&productTable); err != nil {
+	if result, err := dynamo.ScanTable(&productTable); err != nil {
 		return nil, err
 	} else {
 		var goods []model.Product
@@ -23,5 +25,33 @@ func FindAllProducts() ([]model.Product, error) {
 			}
 		}
 		return goods, nil
+	}
+}
+
+func FindAllProductsByOwner(s *string) (*[]model.Product, error) {
+	f := expression.Name("owner").Equal(expression.Value(s))
+	if expr, err := expression.NewBuilder().WithFilter(f).Build(); err != nil {
+		return nil, err
+	} else {
+		input := &dynamodb.ScanInput{
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
+			FilterExpression:          expr.Filter(),
+			TableName:                 &productTable,
+		}
+		if result, err := dynamo.Scan(input); err != nil {
+			return nil, err
+		} else {
+			var products []model.Product
+			for _, item := range result.Items {
+				product := model.Product{}
+				if err := dynamodbattribute.UnmarshalMap(item, &product); err != nil {
+					return nil, err
+				} else {
+					products = append(products, product)
+				}
+			}
+			return &products, nil
+		}
 	}
 }
