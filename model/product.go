@@ -1,9 +1,9 @@
 package model
 
 type Product struct {
-	ID            string   `json:"id";repo:"id,hash"`
-	SKU           string   `json:"sku";repo:"sku,sort"`
-	Category      string   `json:"category";repo:"category"`
+	Id            string   `json:"id"`
+	Sku           string   `json:"sku"`
+	Category      string   `json:"category"`
 	Subcategory   string   `json:"subcategory"`
 	Name          string   `json:"name"`
 	Description   string   `json:"description"`

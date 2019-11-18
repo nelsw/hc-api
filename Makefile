@@ -53,19 +53,22 @@ package: build
 # Executes test, build, package and `sam local invoke`.
 # -t path to required template.[yaml|yml] file
 # -e path to optional JSON file containing event data
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
 invoke: test build package
 	sam local invoke \
 		-t ${TEMPLATE_YML_DIR} \
 		-e ${REQUEST_JSON_DIR} \
-		${FUNCTION}
+		${FUNCTION} | jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
 
 # Updates λƒ code with freshly packaged source.
+# https://docs.aws.amazon.com/cli/latest/reference/lambda/update-function-code.html
 update-code: package
 	aws lambda update-function-code \
 		--function-name ${FUNCTION} \
 		--zip-file ${ZIP_DIR}
 
-# Updates λƒ  configuration with variable values.
+# Updates λƒ configuration with variable values.
+# https://docs.aws.amazon.com/cli/latest/reference/lambda/update-function-configuration.html
 update-conf:
 	aws lambda update-function-configuration \
 		--function-name ${FUNCTION} \
