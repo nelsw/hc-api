@@ -88,7 +88,7 @@ update-conf:
 		--function-name ${FUNCTION} \
 		--role ${ROLE} \
 		--handler ${HANDLER} \
-		--description ${DESC}
+		--description ${DESC} \
 		--timeout ${TIMEOUT} \
 		--memory-size ${MEMORY} \
 		--environment ${ENV_VAR} \
@@ -102,7 +102,7 @@ create: package
 	aws lambda create-function \
 		--function-name ${FUNCTION} \
 		--runtime ${RUNTIME} \
-		--role ${ROLE}
+		--role ${ROLE} \
 		--handler ${HANDLER} \
 		--description ${DESC} \
 		--zip-file ${ZIP_DIR} \
