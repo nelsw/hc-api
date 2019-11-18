@@ -16,9 +16,9 @@ TST_DIR=./...
 # SAM local invoke properties.
 REQUEST_JSON=request.json
 TEMPLATE_YML=template.yml
-QSP=$(shell jq '.' testdata/qsp.json)
+QSP=$(shell jq '.' testdata/qsp.json -c)
 BODY=$(shell jq '.|tostring' testdata/body.json)
-TEMPLATE_JSON=testdata/tmp.json
+TMP=testdata/tmp.json
 
 # AWS Lambda Function (λƒ) properties.
 FUNCTION=
@@ -28,7 +28,7 @@ DESC=
 TIMEOUT=
 MEMORY=
 ROLE=
-ENV_VAR=$(shell jq '.Variables' env.json -c)
+ENV_VAR=$(shell jq '.Variables' testdata/env.json -c)
 
 # A phony target is one that is not really the name of a file, but rather a sequence of commands.
 # We use this practice to avoid potential naming conflicts with files in the home environment but
@@ -37,7 +37,7 @@ ENV_VAR=$(shell jq '.Variables' env.json -c)
 
 # Removes build and package artifacts.
 clean:
-	rm -f ${TST_OUT}; rm -f ${SRC_ZIP}; rm -f ${SRC_EXE};
+	rm -f ${TST_OUT}; rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${TMP}
 
 # Tests the entire project and outputs a coverage profile.
 test:
@@ -50,13 +50,15 @@ init-request:
 
 # Update the sam template with domain and environment details.
 init-template:
+	jq -n '$(shell yq r -j template.yml)' > testdata/tmp.json;
 	jq '.Resources.handler.Properties.Environment.Variables=${ENV_VAR} | \
 		.Resources.handler.Properties.Handler="${HANDLER}" | \
 		.Resources.handler.Properties.MemorySize=${MEMORY} | \
+		.Resources.handler.Properties.Runtime="${RUNTIME}" | \
 		.Resources.handler.Properties.Timeout=${TIMEOUT} | \
 		.Resources.handler.Properties.CodeUri="." | \
-		.Description="${DESC}"' ${TEMPLATE_JSON} | sponge ${TEMPLATE_JSON};
-	yq r ${TEMPLATE_JSON} | sponge ${TEMPLATE_YML};
+		.Description="${DESC}"' ${TMP} | sponge ${TMP};
+	yq r ${TMP} | sponge ${TEMPLATE_YML};
 
 # Builds the source executable from a specified path.
 build:
@@ -72,7 +74,7 @@ package: build
 # -t path to required template.[yaml|yml] file
 # -e path to optional JSON file containing event data
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
-invoke: build package
+invoke: build package init-request init-template
 	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
 	| jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
 
