@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"github.com/google/uuid"
 	"hc-api/model"
 	"hc-api/repo/dynamo"
 	"os"
@@ -53,5 +54,20 @@ func FindAllProductsByOwner(s *string) (*[]model.Product, error) {
 			}
 			return &products, nil
 		}
+	}
+}
+
+func SaveProduct(p *model.Product) error {
+	if p.Id == "" {
+		if id, err := uuid.NewUUID(); err != nil {
+			return err
+		} else {
+			p.Id = id.String()
+		}
+	}
+	if item, err := dynamodbattribute.MarshalMap(&p); err != nil {
+		return err
+	} else {
+		return dynamo.PutItem(item, &productTable)
 	}
 }

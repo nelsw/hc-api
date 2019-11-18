@@ -41,7 +41,7 @@ func IsPasswordValid(s string) error {
 			// do not increment length for unrecognized characters
 		}
 	}
-	if length < 7 || length > 24 {
+	if length < 8 || length > 24 {
 		return fmt.Errorf("bad password, must contain 8-24 characters")
 	} else if number == false {
 		return fmt.Errorf("bad password, must contain at least 1 number")
@@ -55,9 +55,6 @@ func IsPasswordValid(s string) error {
 }
 
 func IsIdValid(s string) error {
-	if _, err := uuid.Parse(s); err != nil {
-		return err
-	} else {
-		return nil
-	}
+	_, err := uuid.Parse(s)
+	return err
 }

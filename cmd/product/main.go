@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	response "github.com/nelsw/hc-util/aws"
+	"hc-api/model"
 	"hc-api/repo"
 	"log"
 	"net/http"
@@ -16,6 +18,18 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	cmd := r.QueryStringParameters["cmd"]
 
 	switch cmd {
+
+	case "save":
+		var p model.Product
+		if err := json.Unmarshal([]byte(r.Body), &p); err != nil {
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		} else if err := p.Validate(); err != nil {
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		} else if err := repo.SaveProduct(&p); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		} else {
+			return response.New().Code(http.StatusOK).Data(&p).Build()
+		}
 
 	case "find-all":
 		if products, err := repo.FindAllProducts(); err != nil {
@@ -31,15 +45,6 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		} else {
 			return response.New().Code(http.StatusOK).Data(&products).Build()
 		}
-
-	case "create":
-		return response.New().Code(http.StatusNotImplemented).Build()
-
-	case "update":
-		return response.New().Code(http.StatusNotImplemented).Build()
-
-	case "delete":
-		return response.New().Code(http.StatusNotImplemented).Build()
 
 	default:
 		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
