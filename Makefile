@@ -1,9 +1,7 @@
-# This file was designed and developed to be used as an
-# interface for making various aspects of this software library.
-# For rapid development, use a local make file to override
-# environment variables prior to excuting source make commands.
+# This file was designed and developed to be used as an interface for making various aspects of this software library.
+# For rapid development, use scripts to override environment variables when issuing make commands.
 
-# The API domain to make.
+# The API domain to make, see the the subdirecgories of cmd for more informaiton.
 DOMAIN=
 
 # Build properties, effecitvely final.
@@ -14,8 +12,8 @@ SRC_DIR=./cmd/${DOMAIN}/${SRC}.go
 ZIP_DIR=fileb://./${SRC_ZIP}
 TST_OUT=cp.out
 TST_DIR=./...
-TEMPLATE_YML_DIR=testdata/template.yml
-REQUEST_JSON_DIR=testdata/request.json
+TEMPLATE_YML_DIR=template.yml
+REQUEST_JSON_DIR=request.json
 
 # AWS Lambda Function (λƒ) properties.
 FUNCTION=
@@ -30,7 +28,7 @@ ENV_VAR=
 # A phony target is one that is not really the name of a file, but rather a sequence of commands.
 # We use this practice to avoid potential naming conflicts with files in the home environment but
 # also improve performance by telling the SHELL that we do not expect the command to create a file.
-.PHONY: clean build package install test sam update create curl
+.PHONY: clean test build package invoke update create
 
 # Removes build and package artifacts.
 clean:

@@ -11,7 +11,7 @@ import (
 )
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Printf("request=%v", r)
+	log.Printf("request: [%v]", r)
 
 	cmd := r.QueryStringParameters["cmd"]
 
@@ -34,7 +34,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return response.New().Code(http.StatusNotImplemented).Build()
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command [%s]", cmd)).Build()
+		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
 	}
 }
 
