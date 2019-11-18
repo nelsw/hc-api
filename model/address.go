@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 )
 
 type Address struct {
@@ -26,17 +25,6 @@ func (address *Address) Validate() error {
 	} else if address.Zip5 == "" {
 		return fmt.Errorf("bad zip [%s]", address.Zip5)
 	} else {
-		return nil
-	}
-}
-
-func (address *Address) SetId() error {
-	if address.Id != "" {
-		return nil
-	} else if id, err := uuid.NewUUID(); err != nil {
-		return err
-	} else {
-		address.Id = id.String()
 		return nil
 	}
 }

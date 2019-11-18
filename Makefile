@@ -1,8 +1,9 @@
 # This file was designed and developed to be used as an interface for making various aspects of this software library.
 # For rapid development, use scripts to override environment variables when issuing make commands.
 
-# The API domain to make, see the the subdirecgories of cmd for more informaiton.
+# The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more informaiton.
 DOMAIN=
+CMD=
 
 # Build properties, effecitvely final.
 SRC=main
@@ -16,17 +17,17 @@ TST_DIR=./...
 # SAM local invoke properties.
 REQUEST_JSON=request.json
 TEMPLATE_YML=template.yml
-QSP=$(shell jq '.' testdata/qsp.json -c)
-BODY=$(shell jq '.|tostring' testdata/body.json)
+QSP=$(shell jq '.' testdata/${DOMAIN}/${CMD}/qsp.json -c)
+BODY=$(shell jq '.|tostring' testdata/${DOMAIN}/${CMD}/body.json)
 TMP=testdata/tmp.json
 
 # AWS Lambda Function (λƒ) properties.
-FUNCTION=
-HANDLER=
-RUNTIME=
+FUNCTION=handler
+HANDLER=${SRC}
+RUNTIME=go1.x
 DESC=
-TIMEOUT=
-MEMORY=
+TIMEOUT=30
+MEMORY=512
 ROLE=
 ENV_VAR=$(shell jq '.Variables' testdata/env.json -c)
 
@@ -34,6 +35,9 @@ ENV_VAR=$(shell jq '.Variables' testdata/env.json -c)
 # We use this practice to avoid potential naming conflicts with files in the home environment but
 # also improve performance by telling the SHELL that we do not expect the command to create a file.
 .PHONY: clean test build package invoke update create
+
+# Convenience method for initializing request.json and templte.yml files prior to executing the invoke command.
+it: init-request init-template invoke
 
 # Removes build and package artifacts.
 clean:
@@ -74,7 +78,7 @@ package: build
 # -t path to required template.[yaml|yml] file
 # -e path to optional JSON file containing event data
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
-invoke: build package init-request init-template
+invoke: build package
 	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
 	| jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
 

@@ -9,7 +9,7 @@ wip
     - [X] find-all
     - [X] find-by-owner
 - address
-    - [ ] find-by-ids
+    - [X] find-by-ids
 - order
     - [ ] find-by-ids
 

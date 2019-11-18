@@ -10,6 +10,7 @@ import (
 	"hc-api/repo"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -22,45 +23,23 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	case "save":
 		var a model.Address
 		if err := json.Unmarshal([]byte(r.Body), &a); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if err := a.Validate(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if err := a.SetId(); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else if err := repo.SaveAddress(&a); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&a).Build()
 		}
 
-	case "find":
-		var a model.Address
-		if err := json.Unmarshal([]byte(r.Body), &a); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
-		} else if err := repo.FindAddress(&a); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else {
-			return response.New().Code(http.StatusOK).Data(&a).Build()
-		}
-
-	case "findBatch":
-		var aa []model.Address
-		if err := json.Unmarshal([]byte(r.Body), &aa); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
-		} else if err := repo.FindAllAddresses(&aa); err != nil {
+	case "find-by-ids":
+		csv := r.QueryStringParameters["ids"]
+		ids := strings.Split(csv, ",")
+		if aa, err := repo.FindAllAddressesByIds(&ids); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&aa).Build()
 		}
-
-	case "create":
-		return response.New().Code(http.StatusNotImplemented).Build()
-
-	case "update":
-		return response.New().Code(http.StatusNotImplemented).Build()
-
-	case "delete":
-		return response.New().Code(http.StatusNotImplemented).Build()
 
 	default:
 		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
