@@ -12,11 +12,11 @@ var userPasswordTable = os.Getenv("USER_PASSWORD_TABLE")
 
 func FindUserPasswordById(s *string) (up *model.UserPassword, err error) {
 	if result, err := dynamo.GetItem(userPasswordKey(s), &userPasswordTable); err != nil {
-		return nil, err
-	} else if err := dynamodbattribute.UnmarshalMap(result.Item, up); err != nil {
-		return nil, err
+		return up, err
+	} else if err := dynamodbattribute.UnmarshalMap(result.Item, &up); err != nil {
+		return up, err
 	} else {
-		return up, nil
+		return up, err
 	}
 }
 

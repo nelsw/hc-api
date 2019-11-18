@@ -28,11 +28,13 @@ func IsPasswordValid(s string) error {
 		switch {
 		case unicode.IsNumber(c):
 			number = true
+			length++
 		case unicode.IsUpper(c):
 			upper = true
 			length++
 		case unicode.IsPunct(c) || unicode.IsSymbol(c):
 			special = true
+			length++
 		case unicode.IsLetter(c) || c == ' ':
 			length++
 		default:

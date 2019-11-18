@@ -27,16 +27,16 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if err := uc.Validate(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if user, err := repo.FindUserByEmail(uc.Email); err != nil {
+		} else if user, err := repo.FindUserByEmail(&uc.Email); err != nil {
 			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if up, err := repo.FindUserPasswordById(&user.ProfileId); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Build()
+		} else if up, err := repo.FindUserPasswordById(&user.PasswordId); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else if err := bcrypt.CompareHashAndPassword([]byte(up.Password), []byte(uc.Password)); err != nil {
 			return response.New().Code(http.StatusUnauthorized).Build()
 		} else if cookie, err := service.NewCookie(user.Email); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&user).Toke(cookie).Build()
+			return response.New().Code(http.StatusOK).Data(user.Data(&cookie)).Build()
 		}
 
 	case "register":

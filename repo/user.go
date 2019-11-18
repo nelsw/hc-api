@@ -13,13 +13,13 @@ import (
 var userTable = os.Getenv("USER_TABLE")
 
 // Finds user by email address (PK).
-func FindUserByEmail(s string) (user *model.User, err error) {
+func FindUserByEmail(s *string) (user *model.User, err error) {
 	if result, err := dynamo.GetItem(userKey(s), &userTable); err != nil {
-		return nil, err
-	} else if err := dynamodbattribute.UnmarshalMap(result.Item, user); err != nil {
-		return nil, err
+		return user, err
+	} else if err := dynamodbattribute.UnmarshalMap(result.Item, &user); err != nil {
+		return user, err
 	} else {
-		return user, nil
+		return user, err
 	}
 }
 
@@ -38,10 +38,10 @@ func SaveUser(user *model.User) error {
 // todo - add/remove sale id
 
 // Returns the simple key for retrieving a user entity
-func userKey(s string) map[string]*dynamodb.AttributeValue {
+func userKey(s *string) map[string]*dynamodb.AttributeValue {
 	return map[string]*dynamodb.AttributeValue{
 		"email": {
-			S: aws.String(strings.ToLower(s)),
+			S: aws.String(strings.ToLower(*s)),
 		},
 	}
 }
