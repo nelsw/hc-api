@@ -1,20 +1,23 @@
 # Hemp Conduit API
+wip
 
-## Domain Driven
-- User
-- Product
-- Address
-- Order
-
-## Command Driven
-- FindAll
-- FindBy
+## Domain Functions
+- user
+    - [X] login
+    - [ ] register
+- product  
+    - [X] find-all
+    - [ ] find-by-owner
+- address
+    - [ ] find-by-ids
+- order
+    - [ ] find-by-ids
 
 ### References
-- λƒ - [AWS Lambda Function][^λƒ]
+- λƒ - [aws lambda function][^λƒ]
 - JQ - [command-line JSON processor][^JQ]
 - YQ - [command-line YAML processor][^YQ]
-- SAM - [Serverless Application Model][^SAM] 
+- SAM - [server-less application model][^SAM] 
 
 ***
 
