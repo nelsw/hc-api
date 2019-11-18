@@ -12,8 +12,13 @@ SRC_DIR=./cmd/${DOMAIN}/${SRC}.go
 ZIP_DIR=fileb://./${SRC_ZIP}
 TST_OUT=cp.out
 TST_DIR=./...
-TEMPLATE_YML_DIR=template.yml
-REQUEST_JSON_DIR=request.json
+
+# SAM local invoke properties.
+REQUEST_JSON=request.json
+TEMPLATE_YML=template.yml
+QSP=$(shell jq '.' testdata/qsp.json)
+BODY=$(shell jq '.|tostring' testdata/body.json)
+TEMPLATE_JSON=testdata/tmp.json
 
 # AWS Lambda Function (λƒ) properties.
 FUNCTION=
@@ -23,7 +28,7 @@ DESC=
 TIMEOUT=
 MEMORY=
 ROLE=
-ENV_VAR=
+ENV_VAR=$(shell jq '.Variables' env.json -c)
 
 # A phony target is one that is not really the name of a file, but rather a sequence of commands.
 # We use this practice to avoid potential naming conflicts with files in the home environment but
@@ -32,13 +37,26 @@ ENV_VAR=
 
 # Removes build and package artifacts.
 clean:
-	rm -f ${TST_OUT};
-	rm -f ${SRC_ZIP};
-	rm -f ${SRC_EXE};
+	rm -f ${TST_OUT}; rm -f ${SRC_ZIP}; rm -f ${SRC_EXE};
 
 # Tests the entire project and outputs a coverage profile.
 test:
 	go test -coverprofile ${TST_OUT} ${TST_DIR}
+
+# Update the request event with test specific query string parameters and body data.
+init-request:
+	jq '.queryStringParameters=${QSP}' ${REQUEST_JSON} | sponge ${REQUEST_JSON};
+	jq '.body=${BODY}' ${REQUEST_JSON} | sponge ${REQUEST_JSON};
+
+# Update the sam template with domain and environment details.
+init-template:
+	jq '.Resources.handler.Properties.Environment.Variables=${ENV_VAR} | \
+		.Resources.handler.Properties.Handler="${HANDLER}" | \
+		.Resources.handler.Properties.MemorySize=${MEMORY} | \
+		.Resources.handler.Properties.Timeout=${TIMEOUT} | \
+		.Resources.handler.Properties.CodeUri="." | \
+		.Description="${DESC}"' ${TEMPLATE_JSON} | sponge ${TEMPLATE_JSON};
+	yq r ${TEMPLATE_JSON} | sponge ${TEMPLATE_YML};
 
 # Builds the source executable from a specified path.
 build:
@@ -54,18 +72,14 @@ package: build
 # -t path to required template.[yaml|yml] file
 # -e path to optional JSON file containing event data
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
-invoke: test build package
-	sam local invoke \
-		-t ${TEMPLATE_YML_DIR} \
-		-e ${REQUEST_JSON_DIR} \
-		${FUNCTION} | jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
+invoke: build package
+	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
+	| jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
 
 # Updates λƒ code with freshly packaged source.
 # https://docs.aws.amazon.com/cli/latest/reference/lambda/update-function-code.html
 update-code: package
-	aws lambda update-function-code \
-		--function-name ${FUNCTION} \
-		--zip-file ${ZIP_DIR}
+	aws lambda update-function-code --function-name ${FUNCTION} --zip-file ${ZIP_DIR}
 
 # Updates λƒ configuration with variable values.
 # https://docs.aws.amazon.com/cli/latest/reference/lambda/update-function-configuration.html
