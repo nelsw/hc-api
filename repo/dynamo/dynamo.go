@@ -30,37 +30,20 @@ func Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error) {
 }
 
 func GetItem(key map[string]*dynamodb.AttributeValue, tableName *string) (*dynamodb.GetItemOutput, error) {
-	if output, err := db.GetItem(&dynamodb.GetItemInput{
-		TableName: tableName,
-		Key:       key,
-	}); err != nil {
-		return nil, err
-	} else {
-		return output, err
-	}
+	return db.GetItem(&dynamodb.GetItemInput{TableName: tableName, Key: key})
 }
 
 func GetBatch(keys []map[string]*dynamodb.AttributeValue, tableName string) (*dynamodb.BatchGetItemOutput, error) {
-	if output, err := db.BatchGetItem(&dynamodb.BatchGetItemInput{
+	return db.BatchGetItem(&dynamodb.BatchGetItemInput{
 		RequestItems: map[string]*dynamodb.KeysAndAttributes{
 			tableName: {Keys: keys},
 		},
-	}); err != nil {
-		return nil, err
-	} else {
-		return output, nil
-	}
+	})
 }
 
 func PutItem(item map[string]*dynamodb.AttributeValue, tableName *string) error {
-	if _, err := db.PutItem(&dynamodb.PutItemInput{
-		Item:      item,
-		TableName: tableName,
-	}); err != nil {
-		return err
-	} else {
-		return nil
-	}
+	_, err := db.PutItem(&dynamodb.PutItemInput{Item: item, TableName: tableName})
+	return err
 }
 
 func Put(v interface{}, s *string) error {
@@ -74,4 +57,9 @@ func Put(v interface{}, s *string) error {
 	} else {
 		return nil
 	}
+}
+
+func Update(input *dynamodb.UpdateItemInput) error {
+	_, err := db.UpdateItem(input)
+	return err
 }

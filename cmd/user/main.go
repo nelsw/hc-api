@@ -21,6 +21,10 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	switch cmd {
 
+	case "register":
+		// todo - create User, UserPassword, and UserProfile entities ... also verify email address.
+		return response.New().Code(http.StatusNotImplemented).Build()
+
 	case "login":
 		var uc model.UserCredentials
 		if err := json.Unmarshal([]byte(r.Body), &uc); err != nil {
@@ -36,12 +40,23 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		} else if cookie, err := service.NewCookie(user.Email); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(user.Data(&cookie)).Build()
+			user.Session = cookie
+			user.OrderIds = nil
+			user.SaleIds = nil
+			return response.New().Code(http.StatusOK).Data(&user).Build()
 		}
 
-	case "register":
-		// todo - hook into save, provide cookie, get email address verified
-		return response.New().Code(http.StatusNotImplemented).Build()
+	case "update":
+		var uu model.UserUpdate
+		if err := json.Unmarshal([]byte(r.Body), &uu); err != nil {
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		} else if email, err := service.Validate(uu.Session); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Build()
+		} else if err := repo.UpdateUser(&email, &uu.Val, &uu.Expression); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Build()
+		} else {
+			return response.New().Code(http.StatusOK).Build()
+		}
 
 	default:
 		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()

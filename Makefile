@@ -1,9 +1,9 @@
 # This file was designed and developed to be used as an interface for making various aspects of this software library.
 # For rapid development, use scripts to override environment variables when issuing make commands.
 
-# The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more informaiton.
-DOMAIN=
-CMD=
+# The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more information.
+DOMAIN=user
+CMD=save
 
 # Build properties, effecitvely final.
 SRC=main
@@ -25,10 +25,10 @@ TMP=testdata/tmp.json
 FUNCTION=handler
 HANDLER=${SRC}
 RUNTIME=go1.x
-DESC=
+DESC=Hemp Conduit API Handler for the ${DOMAIN} domain.
 TIMEOUT=30
 MEMORY=512
-ROLE=
+ROLE=arn:aws:iam::270722761968:role/service-role/test-role
 ENV_VAR=$(shell jq '.Variables' testdata/env.json -c)
 
 # A phony target is one that is not really the name of a file, but rather a sequence of commands.
