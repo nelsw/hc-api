@@ -2,8 +2,10 @@
 # For rapid development, use scripts to override environment variables when issuing make commands.
 
 # The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more information.
-DOMAIN=user
-CMD=save
+d=
+c=
+DOMAIN=${d}
+CMD=${c}
 
 # Build properties, effecitvely final.
 SRC=main
@@ -37,7 +39,8 @@ ENV_VAR=$(shell jq '.Variables' testdata/env.json -c)
 .PHONY: clean test build package invoke update create
 
 # Convenience method for initializing request.json and templte.yml files prior to executing the invoke command.
-it: init-request init-template invoke
+# todo - include reseting request.json and template.yml to original values
+it: init-request init-template invoke clean
 
 # Removes build and package artifacts.
 clean:
