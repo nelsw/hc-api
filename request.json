@@ -82,9 +82,7 @@
       "https"
     ]
   },
-  "queryStringParameters": {
-    "cmd": "save"
-  },
+  "queryStringParameters": { },
   "multiValueQueryStringParameters": {
     "name": [
       "me"
@@ -124,5 +122,5 @@
     "httpMethod": "POST",
     "apiId": "gy415nuibc"
   },
-  "body": "{\"email\":\"connor@wiesow.com\",\"password_id\":\"foo\",\"profile_id\":\"\",\"address_ids\":[\"1f793d63-4405-42e3-bd15-ad33d3daaf6f\"],\"product_ids\":[\"df3d6542-c828-49e9-a62c-cb6e67d5d730\",\"59e6a1ff-20c9-40d1-b3c8-8a5bd9eee2ac\"]}"
+  "body": ""
 }

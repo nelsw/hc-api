@@ -51,11 +51,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if err := json.Unmarshal([]byte(r.Body), &uu); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if email, err := service.Validate(uu.Session); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Build()
-		} else if err := repo.UpdateUser(&email, &uu.Val, &uu.Expression); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Build()
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		} else if err := repo.UpdateUser(&email, &uu.Expression, &uu.Val); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Build()
+			return response.New().Code(http.StatusOK).Text(string([]byte(`{"success":""}`))).Build()
 		}
 
 	default:

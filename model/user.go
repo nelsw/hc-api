@@ -57,9 +57,9 @@ type UserProfile struct {
 // ADD - update numbers and sets
 // DELETE - remove elements from a set
 type UserUpdate struct {
-	Val        string `json:"val"`
-	Expression string `json:"expression"`
-	Session    string `json:"session"`
+	Val        []string `json:"val"`
+	Expression string   `json:"expression"`
+	Session    string   `json:"session"`
 }
 
 // Validates the UserCredentials entity by confirming that both the email and password values are valid.

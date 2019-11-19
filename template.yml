@@ -1,19 +1,13 @@
-Description: Hemp Conduit API Handler for the user domain.
+Transform: AWS::Serverless-2016-10-31
+Description:
 Resources:
   handler:
+    Type: AWS::Lambda::Function
     Properties:
-      CodeUri: .
+      Handler:
+      CodeUri:
+      MemorySize:
+      Runtime:
+      Timeout:
       Environment:
         Variables:
-          USER_TABLE: hemp_conduit_user
-          USER_PROFILE_TABLE: hemp_conduit_user_profile
-          USER_PASSWORD_TABLE: hemp_conduit_user_password
-          PRODUCT_TABLE: hemp_conduit_product
-          ADDRESS_TABLE: hemp_conduit_address
-          ORDER_TABLE: hemp_conduit_order
-      Handler: main
-      MemorySize: 512
-      Runtime: go1.x
-      Timeout: 30
-    Type: AWS::Lambda::Function
-Transform: AWS::Serverless-2016-10-31
