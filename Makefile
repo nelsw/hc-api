@@ -2,8 +2,6 @@
 # For rapid development, use scripts to override environment variables when issuing make commands.
 
 # The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more information.
-d=
-c=
 DOMAIN=${d}
 CMD=${c}
 
@@ -27,11 +25,12 @@ TMP=testdata/tmp.json
 FUNCTION=handler
 HANDLER=${SRC}
 RUNTIME=go1.x
-DESC=Hemp Conduit API Handler for the ${DOMAIN} domain.
+DESC=""
 TIMEOUT=30
 MEMORY=512
-ROLE=arn:aws:iam::270722761968:role/service-role/test-role
-ENV_VAR=$(shell jq '.Variables' testdata/env.json -c)
+ROLE=
+ENVIRONMENT='$(shell jq '.' testdata/env.json -c)'
+VARIABLES=$(shell jq '.Variables' testdata/env.json -c)
 
 # A phony target is one that is not really the name of a file, but rather a sequence of commands.
 # We use this practice to avoid potential naming conflicts with files in the home environment but
@@ -58,7 +57,7 @@ init-request:
 # Update the sam template with domain and environment details.
 init-template:
 	jq -n '$(shell yq r -j template.yml)' > testdata/tmp.json;
-	jq '.Resources.handler.Properties.Environment.Variables=${ENV_VAR} | \
+	jq '.Resources.handler.Properties.Environment.Variables=${VARIABLES} | \
 		.Resources.handler.Properties.Handler="${HANDLER}" | \
 		.Resources.handler.Properties.MemorySize=${MEMORY} | \
 		.Resources.handler.Properties.Runtime="${RUNTIME}" | \
@@ -100,7 +99,7 @@ update-conf:
 		--description ${DESC} \
 		--timeout ${TIMEOUT} \
 		--memory-size ${MEMORY} \
-		--environment ${ENV_VAR} \
+		--environment ${ENVIRONMENT} \
 		--runtime ${RUNTIME}
 
 # Helper command to update λƒ code and configuration.
@@ -117,4 +116,4 @@ create: package
 		--zip-file ${ZIP_DIR} \
 		--memory-size ${MEMORY} \
 		--timeout ${TIMEOUT} \
-		--environment ${ENV_VAR}
+		--environment ${ENVIRONMENT}
