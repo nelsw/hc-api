@@ -1,8 +1,13 @@
 # This file was designed and developed to be used as an interface for making various aspects of this software library.
 # For rapid development, use scripts to override environment variables when issuing make commands.
+# In an effort to maintain modularity, fuctions separate concerns and knowledge by a domain driven data model.
+# This not only supports AOP and separation of concerns, but organic atomiticy for clients and requests.
 
 # The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more information.
+d=
 DOMAIN=${d}
+# The command, or case value, of an API request.
+c=
 CMD=${c}
 
 # Build properties, effecitvely final.
