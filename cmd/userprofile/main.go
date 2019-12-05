@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	response "github.com/nelsw/hc-util/aws"
 	"hc-api/service"
-	"hc-api/service/dynamo"
 	"net/http"
 	"os"
 )
@@ -55,7 +54,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if _, err := service.ValidateSession(up.Session, r.RequestContext.Identity.SourceIP); err != nil {
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := dynamo.Put(up, &table); err != nil {
+		} else if err := service.Put(up, &table); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&up).Build()
@@ -64,7 +63,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	case "find":
 		var up UserProfile
 		id := r.QueryStringParameters["id"]
-		if result, err := dynamo.Get(&table, &id); err != nil {
+		if result, err := service.Get(&table, &id); err != nil {
 			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
 		} else if err := dynamodbattribute.UnmarshalMap(result.Item, &up); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()

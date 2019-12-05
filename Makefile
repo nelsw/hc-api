@@ -82,7 +82,7 @@ package: build
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
 invoke: build package
 	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
-	| jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
+	| jq
 
 # Updates λƒ code with freshly packaged source.
 # https://docs.aws.amazon.com/cli/latest/reference/lambda/update-function-code.html

@@ -82,7 +82,9 @@
       "https"
     ]
   },
-  "queryStringParameters": { },
+  "queryStringParameters": {
+    "cmd": "login"
+  },
   "multiValueQueryStringParameters": {
     "name": [
       "me"
@@ -122,5 +124,5 @@
     "httpMethod": "POST",
     "apiId": "gy415nuibc"
   },
-  "body": ""
+  "body": "{\"email\":\"connor@wiesow.com\",\"password\":\"Pass123!\"}"
 }

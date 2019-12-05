@@ -1,5 +1,5 @@
 // This package is responsible for exporting generic dynamo methods to domain specific repository ƒ's.
-package dynamo
+package service
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,7 +21,7 @@ func init() {
 	}
 }
 
-// Returns the simple key for retrieving a user entity
+// Returns the simple key for retrieving a domain data model entity
 func key(s *string) map[string]*dynamodb.AttributeValue {
 	return map[string]*dynamodb.AttributeValue{
 		"id": {
@@ -30,20 +30,12 @@ func key(s *string) map[string]*dynamodb.AttributeValue {
 	}
 }
 
-func ScanTable(s *string) (*dynamodb.ScanOutput, error) {
+func Scan(s *string) (*dynamodb.ScanOutput, error) {
 	return db.Scan(&dynamodb.ScanInput{TableName: s})
-}
-
-func Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error) {
-	return db.Scan(input)
 }
 
 func Get(tableName, id *string) (*dynamodb.GetItemOutput, error) {
 	return db.GetItem(&dynamodb.GetItemInput{TableName: tableName, Key: key(id)})
-}
-
-func GetItem(key map[string]*dynamodb.AttributeValue, tableName *string) (*dynamodb.GetItemOutput, error) {
-	return db.GetItem(&dynamodb.GetItemInput{TableName: tableName, Key: key})
 }
 
 func GetBatch(keys []map[string]*dynamodb.AttributeValue, tableName string) (*dynamodb.BatchGetItemOutput, error) {
@@ -52,11 +44,6 @@ func GetBatch(keys []map[string]*dynamodb.AttributeValue, tableName string) (*dy
 			tableName: {Keys: keys},
 		},
 	})
-}
-
-func PutItem(item map[string]*dynamodb.AttributeValue, tableName *string) error {
-	_, err := db.PutItem(&dynamodb.PutItemInput{Item: item, TableName: tableName})
-	return err
 }
 
 func Put(v interface{}, s *string) error {
