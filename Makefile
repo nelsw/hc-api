@@ -118,14 +118,12 @@ create: package
 		--timeout ${TIMEOUT} \
 		--environment ${ENVIRONMENT}
 
-#        user - https://u4bht5jd1g.execute-api.us-east-1.amazonaws.com/dev
-# userprofile - https://egwby22ik9.execute-api.us-east-1.amazonaws.com/dev
-#     product - https://dgbszkmgh9.execute-api.us-east-1.amazonaws.com/dev
+# Conveience command for testing api endpoints.
 STAGE=dev
 QUERY=
 APIID=
 curl:
 	curl \
-	-v https://egwby22ik9.execute-api.us-east-1.amazonaws.com/dev?cmd=${CMD}&id=df3d6542-c828-49e9-a62c-cb6e67d5d730 \
+	-v "https://${APIID}.execute-api.us-east-1.amazonaws.com/${STAGE}?${QUERY}" \
     -d '$(shell jq '.' testdata/${DOMAIN}/${CMD}/body.json -c)' \
     -H 'Content-Type: application/json' | jq

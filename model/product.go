@@ -20,7 +20,7 @@ type Product struct {
 	Unit          string   `json:"unit"`
 	Owner         string   `json:"owner"`
 	ImageSet      []string `json:"image_set"`
-	ShipsFrom     string   `json:"ships_from"`
+	ShipFrom      string   `json:"ship_from"`
 }
 
 func (p *Product) Unmarshal(s string) error {

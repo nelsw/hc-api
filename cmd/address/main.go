@@ -7,15 +7,13 @@ import (
 	response "github.com/nelsw/hc-util/aws"
 	"hc-api/model"
 	"hc-api/service"
-	"log"
 	"net/http"
 	"strings"
 )
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Printf("request: [%v]", r)
-
 	cmd := r.QueryStringParameters["cmd"]
+	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
 
 	switch cmd {
 

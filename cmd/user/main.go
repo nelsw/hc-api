@@ -9,14 +9,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"hc-api/model"
 	"hc-api/service"
-	"log"
 	"net/http"
 )
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Printf("request: [%v]", r)
-
 	cmd := r.QueryStringParameters["cmd"]
+	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
 
 	switch cmd {
 
