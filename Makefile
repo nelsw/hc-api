@@ -4,11 +4,9 @@
 # This not only supports AOP and separation of concerns, but organic atomiticy for clients and requests.
 
 # The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more information.
-d=
-DOMAIN=${d}
-# The command, or case value, of an API request.
-c=
-CMD=${c}
+DOMAIN=
+# The command, AKA switch statement case value, of an API request.
+CMD=
 
 # Build properties, effecitvely final.
 SRC=main
@@ -30,7 +28,7 @@ TMP=testdata/tmp.json
 FUNCTION=handler
 HANDLER=${SRC}
 RUNTIME=go1.x
-DESC=""
+DESC="${DOMAIN} handler"
 TIMEOUT=30
 MEMORY=512
 ROLE=
@@ -44,7 +42,7 @@ VARIABLES=$(shell jq '.Variables' testdata/env.json -c)
 
 # Convenience method for initializing request.json and templte.yml files prior to executing the invoke command.
 # todo - include reseting request.json and template.yml to original values
-it: init-request init-template invoke clean
+it: init-request init-template invoke
 
 # Removes build and package artifacts.
 clean:
@@ -61,29 +59,26 @@ init-request:
 
 # Update the sam template with domain and environment details.
 init-template:
-	jq -n '$(shell yq r -j template.yml)' > testdata/tmp.json;
+	jq -n '$(shell yq r -j template.yml)' > ${TMP};
 	jq '.Resources.handler.Properties.Environment.Variables=${VARIABLES} | \
 		.Resources.handler.Properties.Handler="${HANDLER}" | \
 		.Resources.handler.Properties.MemorySize=${MEMORY} | \
 		.Resources.handler.Properties.Runtime="${RUNTIME}" | \
 		.Resources.handler.Properties.Timeout=${TIMEOUT} | \
 		.Resources.handler.Properties.CodeUri="." | \
-		.Description="${DESC}"' ${TMP} | sponge ${TMP};
+		.Description=${DESC}' ${TMP} | sponge ${TMP};
 	yq r ${TMP} | sponge ${TEMPLATE_YML};
 
 # Builds the source executable from a specified path.
 build:
 	GOOS=linux GOARCH=amd64 go build -o ${SRC_EXE} ${SRC_DIR}
 
-# Packages the executable into a zip file.
-# -9 compress better
-# -r recurse into directories
+# Packages the executable into a zip file with flags -9, compress better, and -r, recurse into directories.
 package: build
 	zip -9 -r ${SRC_ZIP} ${SRC_EXE}
 
-# Executes test, build, package and `sam local invoke`.
-# -t path to required template.[yaml|yml] file
-# -e path to optional JSON file containing event data
+# Executes build, package and `sam local invoke` with flags -t, path to required template.[yaml|yml] file, and -e,
+# path to optional JSON file containing event data
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
 invoke: build package
 	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
@@ -122,3 +117,15 @@ create: package
 		--memory-size ${MEMORY} \
 		--timeout ${TIMEOUT} \
 		--environment ${ENVIRONMENT}
+
+#        user - https://u4bht5jd1g.execute-api.us-east-1.amazonaws.com/dev
+# userprofile - https://egwby22ik9.execute-api.us-east-1.amazonaws.com/dev
+#     product - https://dgbszkmgh9.execute-api.us-east-1.amazonaws.com/dev
+STAGE=dev
+QUERY=
+APIID=
+curl:
+	curl \
+	-v https://egwby22ik9.execute-api.us-east-1.amazonaws.com/dev?cmd=${CMD}&id=df3d6542-c828-49e9-a62c-cb6e67d5d730 \
+    -d '$(shell jq '.' testdata/${DOMAIN}/${CMD}/body.json -c)' \
+    -H 'Content-Type: application/json' | jq

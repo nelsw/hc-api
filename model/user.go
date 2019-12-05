@@ -2,8 +2,10 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"unicode"
 )
 
@@ -13,7 +15,7 @@ var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-
 // Primary user object for the domain, visible to client and server. With the exception of the Email field, which
 // represents its plain text value, each property is a reference to a unique ID, or collection of unique ID's.
 type User struct {
-	Email      string   `json:"email"`
+	Id         string   `json:"id"`
 	PasswordId string   `json:"password_id"`
 	ProfileId  string   `json:"profile_id"`
 	AddressIds []string `json:"address_ids"`
@@ -29,26 +31,17 @@ type UserCredentials struct {
 	Password string `json:"password"`
 }
 
+// Data structure for securely associating user entities with their email address.
+type UserEmail struct {
+	Id     string `json:"id"` // email address
+	UserId string `json:"user_id"`
+}
+
 // Data structure for persisting and retrieving a users (encrypted) password. The user entity maintains a 1-1 FK
 // relationship with the UserPassword entity for referential integrity, where user.PasswordId == userPassword.Id.
 type UserPassword struct {
 	Id       string `json:"id"`
 	Password string `json:"password"`
-}
-
-// UserProfile also promotes separation of concerns by decoupling user profile details from the primary user entity. IF
-// UserProfile.EmailOld != UserProfile.EmailNew, AND User.Email == UserProfile.EmailOld, THEN we must prompt the user to
-// confirm new email address. IF UserProfile.Password1 is not blank AND UserProfile.Password2 is not blank AND valid AND
-// UserProfile.Password1 == UserProfile.Password2, then we update the UserPassword entity and return OK.
-type UserProfile struct {
-	Id        string `json:"id"`
-	EmailOld  string `json:"email_old"`
-	EmailNew  string `json:"email_new"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Phone     string `json:"phone"`
-	Password1 string `json:"password_1"`
-	Password2 string `json:"password_2"`
 }
 
 // Used to update an existing user item in an Amazon DynamoDB table.
@@ -70,6 +63,17 @@ func (uc *UserCredentials) Validate() error {
 	} else if err := IsPasswordValid(uc.Password); err != nil {
 		return err
 	} else {
+		return nil
+	}
+}
+
+func (uc *UserCredentials) Unmarshal(s string) error {
+	if err := json.Unmarshal([]byte(s), &uc); err != nil {
+		return err
+	} else if err := uc.Validate(); err != nil {
+		return err
+	} else {
+		uc.Email = strings.ToLower(uc.Email)
 		return nil
 	}
 }

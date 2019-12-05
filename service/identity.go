@@ -17,15 +17,17 @@ func keyFunc(token *jwt.Token) (interface{}, error) { return jwtKey, nil }
 
 // Data structure representing a parsed JWT string.
 type Claims struct {
-	Email string `json:"email"`
+	Id string `json:"id"`
+	Ip string `json:"ip"`
 	jwt.StandardClaims
 }
 
-func NewCookie(s string) (cookie string, err error) {
+func NewCookie(s1, s2 string) (cookie string, err error) {
 	expiry := time.Now().Add(30 * time.Minute)
 	// Declare the token with the algorithm used for signing, and JWT claims.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
-		Email: s,
+		Id: s1,
+		Ip: s2,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expiry.Unix(),
 		},
@@ -47,16 +49,16 @@ func NewCookie(s string) (cookie string, err error) {
 	}
 }
 
-func Validate(cookie string) (string, error) {
+func ValidateSession(cookie, ip string) (string, error) {
 	claims := &Claims{}
 	// Find the token in the cookie, may not exist.
 	token := regex.ReplaceAllString(cookie, `$2`)
 	if tkn, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil {
 		// Either the token expired or the signature doesn't match.
 		return "", err
-	} else if !tkn.Valid {
+	} else if !tkn.Valid || claims.Ip != ip {
 		return "", errors.New("bad token")
 	} else {
-		return claims.Email, nil
+		return claims.Id, nil
 	}
 }

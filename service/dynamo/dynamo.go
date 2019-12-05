@@ -21,12 +21,25 @@ func init() {
 	}
 }
 
+// Returns the simple key for retrieving a user entity
+func key(s *string) map[string]*dynamodb.AttributeValue {
+	return map[string]*dynamodb.AttributeValue{
+		"id": {
+			S: s,
+		},
+	}
+}
+
 func ScanTable(s *string) (*dynamodb.ScanOutput, error) {
 	return db.Scan(&dynamodb.ScanInput{TableName: s})
 }
 
 func Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error) {
 	return db.Scan(input)
+}
+
+func Get(tableName, id *string) (*dynamodb.GetItemOutput, error) {
+	return db.GetItem(&dynamodb.GetItemInput{TableName: tableName, Key: key(id)})
 }
 
 func GetItem(key map[string]*dynamodb.AttributeValue, tableName *string) (*dynamodb.GetItemOutput, error) {
