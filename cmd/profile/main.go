@@ -44,7 +44,9 @@ func (up *UserProfile) Unmarshal(s string) error {
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
-	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
+	body := r.Body
+	ip := r.RequestContext.Identity.SourceIP
+	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
 
 	switch cmd {
 
@@ -52,7 +54,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		var up UserProfile
 		if err := up.Unmarshal(r.Body); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if _, err := service.ValidateSession(up.Session, r.RequestContext.Identity.SourceIP); err != nil {
+		} else if _, err := service.ValidateSession(up.Session, ip); err != nil {
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
 		} else if err := service.Put(up, &table); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()

@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/google/uuid"
 	response "github.com/nelsw/hc-util/aws"
 	"hc-api/service"
 	"net/http"
@@ -16,37 +15,27 @@ import (
 	"strings"
 )
 
-var addressTable = os.Getenv("ADDRESS_TABLE")
+var table = os.Getenv("ADDRESS_TABLE")
 
 type Address struct {
 	Id      string `json:"id"`
-	Session string `json:"session,omitempty"`
-	Street1 string `json:"street_1,omitempty"`
-	Street2 string `json:"street_2,omitempty"`
-	UnitNum string `json:"unit_num,omitempty"`
-	City    string `json:"city,omitempty"`
-	State   string `json:"state,omitempty"`
-	Zip5    string `json:"zip_5,omitempty"`
+	Session string `json:"session"`
+	Street  string `json:"street"`
+	Unit    string `json:"unit,omitempty"`
+	City    string `json:"city"`
+	State   string `json:"state"`
+	Zip5    string `json:"zip_5"`
 	Zip4    string `json:"zip_4,omitempty"`
 }
 
-func (a *Address) Unmarshal(s string) error {
-	if err := json.Unmarshal([]byte(s), &a); err != nil {
+func (a *Address) Validate() error {
+	if b, err := json.Marshal(a); err != nil {
 		return err
-	} else if a.Street1 == "" {
-		return fmt.Errorf("bad street [%s]", a.Street1)
-	} else if a.City == "" {
-		return fmt.Errorf("bad city [%s]", a.City)
-	} else if a.State == "" {
-		return fmt.Errorf("bad state [%s]", a.State)
-	} else if a.Zip5 == "" {
-		return fmt.Errorf("bad zip [%s]", a.Zip5)
-	} else if a.Id != "" {
-		return nil
-	} else if id, err := uuid.NewUUID(); err != nil {
+	} else if str, err := service.VerifyAddress(string(b)); err != nil {
+		return err
+	} else if err := json.Unmarshal([]byte(str), &a); err != nil {
 		return err
 	} else {
-		a.Id = id.String()
 		return nil
 	}
 }
@@ -58,34 +47,36 @@ func findAllAddressesByIds(ss *[]string) (*[]Address, error) {
 	for _, s := range *ss {
 		keys = append(keys, map[string]*dynamodb.AttributeValue{"id": {S: aws.String(s)}})
 	}
-	if results, err := service.GetBatch(keys, addressTable); err != nil {
+	if results, err := service.GetBatch(keys, table); err != nil {
 		return nil, err
-	} else if err := dynamodbattribute.UnmarshalListOfMaps(results.Responses[addressTable], &aa); err != nil {
+	} else if err := dynamodbattribute.UnmarshalListOfMaps(results.Responses[table], &aa); err != nil {
 		return nil, err
 	} else {
 		return &aa, nil
 	}
 }
 
-// Saves an address, creates if new, else updates.
-func saveAddress(a *Address) error {
-	a.Session = ""
-	return service.Put(a, &addressTable)
-}
-
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
-	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
+	body := r.Body
+	ip := r.RequestContext.Identity.SourceIP
+	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
 
 	switch cmd {
 
 	case "save":
 		var a Address
-		if err := a.Unmarshal(r.Body); err != nil {
+		if err := json.Unmarshal([]byte(body), &a); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if _, err := service.ValidateSession(a.Session, r.RequestContext.Identity.SourceIP); err != nil {
+		} else if _, err := service.ValidateSession(a.Session, ip); err != nil {
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := saveAddress(&a); err != nil {
+		} else if b, err := json.Marshal(a); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		} else if str, err := service.VerifyAddress(string(b)); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		} else if err := json.Unmarshal([]byte(str), &a); err != nil {
+			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		} else if err := service.Put(a, &table); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&a).Build()

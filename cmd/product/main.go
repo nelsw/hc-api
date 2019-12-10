@@ -30,9 +30,10 @@ type Product struct {
 	PriceFraction string   `json:"price_fraction"`
 	Quantity      string   `json:"quantity"`
 	Unit          string   `json:"unit"`
-	Owner         string   `json:"owner"`
+	Owner         string   `json:"owner"` // user_id
 	ImageSet      []string `json:"image_set"`
-	ShipFrom      string   `json:"ship_from"`
+	AddressId     string   `json:"address_id"`
+	ZipCode       string   `json:"zip_code"`
 }
 
 func (p *Product) Unmarshal(s string) error {
@@ -84,14 +85,11 @@ func findAllProductsByIds(ss *[]string) (*[]Product, error) {
 	}
 }
 
-func saveProduct(p *Product) error {
-	p.Session = ""
-	return service.Put(p, &productTable)
-}
-
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
-	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
+	body := r.Body
+	ip := r.RequestContext.Identity.SourceIP
+	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
 
 	switch cmd {
 
@@ -99,9 +97,9 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		var p Product
 		if err := p.Unmarshal(r.Body); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if _, err := service.ValidateSession(p.Session, r.RequestContext.Identity.SourceIP); err != nil {
+		} else if _, err := service.ValidateSession(p.Session, ip); err != nil {
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := saveProduct(&p); err != nil {
+		} else if err := service.Put(p, &productTable); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&p).Build()

@@ -32,8 +32,8 @@ DESC="${DOMAIN} handler"
 TIMEOUT=30
 MEMORY=512
 ROLE=
-ENVIRONMENT='$(shell jq '.' testdata/env.json -c)'
-VARIABLES=$(shell jq '.Variables' testdata/env.json -c)
+ENVIRONMENT='$(shell jq '.' testdata/${DOMAIN}/env.json -c)'
+VARIABLES=$(shell jq '.Variables' testdata/${DOMAIN}/env.json -c)
 
 # A phony target is one that is not really the name of a file, but rather a sequence of commands.
 # We use this practice to avoid potential naming conflicts with files in the home environment but
@@ -105,7 +105,7 @@ update-conf:
 # Helper command to update λƒ code and configuration.
 update: update-code update-conf
 
-# Creates an AWS Lambda Function (λƒ).
+# Creates an AWS λƒ.
 create: package
 	aws lambda create-function \
 		--function-name ${FUNCTION} \
