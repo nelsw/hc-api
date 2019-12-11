@@ -28,7 +28,7 @@ TMP=testdata/tmp.json
 FUNCTION=handler
 HANDLER=${SRC}
 RUNTIME=go1.x
-DESC="${DOMAIN} handler"
+DESC="null"
 TIMEOUT=30
 MEMORY=512
 ROLE=
@@ -42,7 +42,7 @@ VARIABLES=$(shell jq '.Variables' testdata/${DOMAIN}/env.json -c)
 
 # Convenience method for initializing request.json and templte.yml files prior to executing the invoke command.
 # todo - include reseting request.json and template.yml to original values
-it: init-request init-template invoke
+it: init-request init-template invoke clean
 
 # Removes build and package artifacts.
 clean:
@@ -82,7 +82,7 @@ package: build
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
 invoke: build package
 	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
-	| jq
+	| jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
 
 # Updates λƒ code with freshly packaged source.
 # https://docs.aws.amazon.com/cli/latest/reference/lambda/update-function-code.html
@@ -102,8 +102,8 @@ update-conf:
 		--environment ${ENVIRONMENT} \
 		--runtime ${RUNTIME}
 
-# Helper command to update λƒ code and configuration.
-update: update-code update-conf
+# Helper command to update both code and configuration of our λƒ, and clean the projet directory.
+update: update-code update-conf clean
 
 # Creates an AWS λƒ.
 create: package
@@ -117,13 +117,3 @@ create: package
 		--memory-size ${MEMORY} \
 		--timeout ${TIMEOUT} \
 		--environment ${ENVIRONMENT}
-
-# Conveience command for testing api endpoints.
-STAGE=dev
-QUERY=
-APIID=
-curl:
-	curl \
-	-v "https://${APIID}.execute-api.us-east-1.amazonaws.com/${STAGE}?${QUERY}" \
-    -d '$(shell jq '.' testdata/${DOMAIN}/${CMD}/body.json -c)' \
-    -H 'Content-Type: application/json' | jq
