@@ -37,11 +37,11 @@ func VerifyAddress(body string) (string, error) {
 }
 
 func NewSession(id, ip string) (string, error) {
-	return invoke("hcTokenHandler", "", map[string]string{"cmd": "create", "id": id, "ip": ip})
+	return invoke("hcSessionHandler", "", map[string]string{"cmd": "create", "id": id, "ip": ip})
 }
 
 func ValidateSession(sess, ip string) (string, error) {
-	return invoke("hcTokenHandler", "", map[string]string{"cmd": "validate", "cookie": sess, "ip": ip})
+	return invoke("hcSessionHandler", "", map[string]string{"cmd": "validate", "token": sess, "ip": ip})
 }
 
 func invoke(name, body string, qsp map[string]string) (string, error) {
