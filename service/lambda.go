@@ -9,8 +9,6 @@ import (
 	"log"
 )
 
-type Request events.APIGatewayProxyRequest
-
 var lc *lambda.Lambda
 
 func init() {
@@ -46,7 +44,7 @@ func ValidateSession(sess, ip string) (string, error) {
 
 func invoke(name, body string, qsp map[string]string) (string, error) {
 	var resp events.APIGatewayProxyResponse
-	if payload, err := json.Marshal(Request{QueryStringParameters: qsp, Body: body}); err != nil {
+	if payload, err := json.Marshal(events.APIGatewayProxyRequest{QueryStringParameters: qsp, Body: body}); err != nil {
 		return "", err
 	} else if r, err := lc.Invoke(&lambda.InvokeInput{FunctionName: aws.String(name), Payload: payload}); err != nil {
 		return "", err
