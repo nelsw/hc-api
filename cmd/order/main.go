@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/google/uuid"
 	response "github.com/nelsw/hc-util/aws"
 	"hc-api/service"
@@ -14,27 +16,30 @@ import (
 
 var orderTable = os.Getenv("ORDER_TABLE")
 var packageTable = os.Getenv("PACKAGE_TABLE")
+var c = "status IN (:s1, :s2)"
+var e = map[string]*dynamodb.AttributeValue{":s1": {S: aws.String("draft-1")}, ":s2": {S: aws.String("draft-2")}}
 
 type Order struct {
-	Id         string   `json:"id,omitempty"`
-	Session    string   `json:"session,omitempty"`
-	UserId     string   `json:"user_id,omitempty"`
-	Email      string   `json:"email"`
-	FirstName  string   `json:"first_name"`
-	LastName   string   `json:"last_name"`
-	Phone      string   `json:"phone"`
-	AddressId  string   `json:"address_id,omitempty"`
-	Street     string   `json:"street"`
-	Unit       string   `json:"unit,omitempty"`
-	City       string   `json:"city"`
-	State      string   `json:"state"`
-	Zip5       string   `json:"zip_5"`
-	Zip4       string   `json:"zip_4,omitempty"`
-	Status     string   `json:"status"` // draft-1, draft-1, draft-1, processing, delivered, complete.
-	PackageSum int64    `json:"package_sum"`
-	PostageSum int64    `json:"postage_sum"`
-	OrderSum   int64    `json:"order_sum"`
-	PackageIds []string `json:"package_ids,omitempty"`
+	Id         string    `json:"id,omitempty"`
+	Session    string    `json:"session,omitempty"`
+	UserId     string    `json:"user_id,omitempty"`
+	Email      string    `json:"email"`
+	FirstName  string    `json:"first_name"`
+	LastName   string    `json:"last_name"`
+	Phone      string    `json:"phone"`
+	AddressId  string    `json:"address_id,omitempty"`
+	Street     string    `json:"street"`
+	Unit       string    `json:"unit,omitempty"`
+	City       string    `json:"city"`
+	State      string    `json:"state"`
+	Zip5       string    `json:"zip_5"`
+	Zip4       string    `json:"zip_4,omitempty"`
+	Status     string    `json:"status"` // draft-1, draft-1, draft-1, processing, delivered, complete.
+	PackageSum int64     `json:"package_sum"`
+	PostageSum int64     `json:"postage_sum"`
+	OrderSum   int64     `json:"order_sum"`
+	PackageIds []string  `json:"package_ids,omitempty"`
+	Packages   []Package `json:"packages,omitempty"`
 }
 
 type Package struct {
@@ -42,8 +47,8 @@ type Package struct {
 	OrderId       string `json:"order_id"`
 	ProductId     string `json:"product_id"`
 	ProductName   string `json:"product_name"`
-	ProductSum    int64  `json:"product_price_dec"`
-	ProductQty    string `json:"product_qty"`
+	ProductPrice  int64  `json:"product_price"`
+	ProductQty    int    `json:"product_qty"`
 	ProductZip    string `json:"product_zip"`    // zip, for shipping rate calculations
 	PostageVendor string `json:"postage_vendor"` // usps, ups, fedex
 	PostageType   string `json:"postage_type"`   // priority, etc.
@@ -68,9 +73,9 @@ func (o *Order) Validate() error {
 }
 
 func (p *Package) Validate() error {
-	if p.ProductId == "" || p.ProductQty == "" || p.ProductPriceInt == "" || p.ProductPriceDec == "" {
+	if p.ProductId == "" || p.ProductQty < 1 || p.ProductPrice < 1 || p.PostagePrice < 0 {
 		return fmt.Errorf("bad product information")
-	} else if p.PostageType == "" || p.PostagePrice == "" || p.PostageVendor == "" || p.ProductZip == "" {
+	} else if p.PostageType == "" || p.PostagePrice < 1 || p.PostageVendor == "" || p.ProductZip == "" {
 		return fmt.Errorf("bad shipping information")
 	} else if p.OrderId == "" {
 		return fmt.Errorf("bad order information")
@@ -98,31 +103,36 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if err := o.Validate(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if err := service.Put(o, &orderTable); err != nil {
+		} else if err := service.PutConditionally(o, &orderTable, &c, e); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if token, err := service.NewSession(o.Id, ip); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Build()
 		} else {
-			o.Session = token
-			return response.New().Code(http.StatusOK).Toke(token).Data(&o).Build()
+			return response.New().Code(http.StatusOK).Data(&o).Build()
 		}
 
 	case "save-order-packages":
-		var pp []Package
-		if err := json.Unmarshal([]byte(body), &pp); err != nil {
+		var o Order
+		if err := json.Unmarshal([]byte(body), &o); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else {
-			// todo - go routine
-			for i, p := range pp {
+			if o.Session != "" {
+				if id, err := service.ValidateSession(o.Session, ip); err != nil {
+					return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
+				} else {
+					o.UserId = id
+				}
+			} else {
+				o.UserId = "guest"
+			}
+			for _, p := range o.Packages {
+				p.OrderId = o.Id
 				if err := p.Validate(); err != nil {
 					return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 				} else if err := service.Put(p, &packageTable); err != nil {
 					return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
-				} else {
-					pp[i] = p
 				}
 			}
-			return response.New().Code(http.StatusOK).Data(&pp).Build()
+			// todo - email confirmation
+			return response.New().Code(http.StatusOK).Build()
 		}
 
 	case "update-order-package-ids":
