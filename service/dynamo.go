@@ -67,6 +67,17 @@ func Put(v interface{}, s *string) error {
 	}
 }
 
+// like put but with a dynamodb condition expression
+func PutConditionally(v interface{}, s, c *string, e map[string]*dynamodb.AttributeValue) error {
+	if item, err := dynamodbattribute.MarshalMap(&v); err == nil {
+		return err
+	} else {
+		in := &dynamodb.PutItemInput{Item: item, TableName: s, ConditionExpression: c, ExpressionAttributeValues: e}
+		_, err := db.PutItem(in)
+		return err
+	}
+}
+
 // deletes an entity by providing a table name and pk
 func Delete(id, table *string) error {
 	_, err := db.DeleteItem(&dynamodb.DeleteItemInput{Key: key(id), TableName: table})
