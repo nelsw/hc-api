@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/google/uuid"
 	response "github.com/nelsw/hc-util/aws"
 	"hc-api/service"
@@ -16,8 +15,11 @@ import (
 
 var orderTable = os.Getenv("ORDER_TABLE")
 var packageTable = os.Getenv("PACKAGE_TABLE")
-var c = "status IN (:s1, :s2)"
-var e = map[string]*dynamodb.AttributeValue{":s1": {S: aws.String("draft-1")}, ":s2": {S: aws.String("draft-2")}}
+var en = expression.Name("status")
+var c = expression.Or(
+	expression.AttributeNotExists(en),
+	expression.Equal(en, expression.Value("draft-1")),
+	expression.Equal(en, expression.Value("draft-2")))
 
 type Order struct {
 	Id         string    `json:"id,omitempty"`
@@ -34,7 +36,7 @@ type Order struct {
 	State      string    `json:"state"`
 	Zip5       string    `json:"zip_5"`
 	Zip4       string    `json:"zip_4,omitempty"`
-	Status     string    `json:"status"` // draft-1, draft-1, draft-1, processing, delivered, complete.
+	Status     string    `json:"status"` // draft-1, draft-2, draft-3, processing, delivered, complete.
 	PackageSum int64     `json:"package_sum"`
 	PostageSum int64     `json:"postage_sum"`
 	OrderSum   int64     `json:"order_sum"`
@@ -91,19 +93,21 @@ func (p *Package) Validate() error {
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
-	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
+	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, r.Body)
 
 	switch cmd {
 
 	case "save-order":
+
 		var o Order
-		if err := json.Unmarshal([]byte(body), &o); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
+			return response.New().Code(http.StatusBadGateway).Text(err.Error()).Build()
 		} else if err := o.Validate(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if err := service.PutConditionally(o, &orderTable, &c, e); err != nil {
+		} else if exp, err := expression.NewBuilder().WithCondition(c).Build(); err != nil {
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		} else if err := service.PutConditionally(o, &orderTable, exp.Condition(), exp.Values()); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&o).Build()
@@ -111,17 +115,17 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "save-order-packages":
 		var o Order
-		if err := json.Unmarshal([]byte(body), &o); err != nil {
+		if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
+			return response.New().Code(http.StatusBadGateway).Text(err.Error()).Build()
+		} else if err := o.Validate(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else {
-			if o.Session != "" {
-				if id, err := service.ValidateSession(o.Session, ip); err != nil {
-					return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-				} else {
-					o.UserId = id
-				}
+			if o.Session == "" {
+				o.UserId = ip
+			} else if id, err := service.ValidateSession(o.Session, ip); err != nil {
+				return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
 			} else {
-				o.UserId = "guest"
+				o.UserId = id
 			}
 			for _, p := range o.Packages {
 				p.OrderId = o.Id
@@ -129,10 +133,18 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 					return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 				} else if err := service.Put(p, &packageTable); err != nil {
 					return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+				} else {
+					o.PackageIds = append(o.PackageIds, p.Id)
 				}
 			}
-			// todo - email confirmation
-			return response.New().Code(http.StatusOK).Build()
+			if exp, err := expression.NewBuilder().WithCondition(c).Build(); err != nil {
+				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			} else if err := service.PutConditionally(o, &orderTable, exp.Condition(), exp.Values()); err != nil {
+				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			} else {
+				// todo - email confirmation
+				return response.New().Code(http.StatusOK).Build()
+			}
 		}
 
 	case "update-order-package-ids":
@@ -143,14 +155,6 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
 		} else if err := service.UpdateSlice(&id, &u.Expression, &orderTable, &u.Val); err != nil {
 			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
-		} else {
-			return response.New().Code(http.StatusOK).Build()
-		}
-
-	case "delete-package":
-		id := r.QueryStringParameters["id"]
-		if err := service.Delete(&id, &packageTable); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Build()
 		}
