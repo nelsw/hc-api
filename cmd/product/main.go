@@ -26,6 +26,7 @@ type Product struct {
 	Subcategory   string   `json:"subcategory"`
 	Name          string   `json:"name"`
 	Description   string   `json:"description"`
+	Price         int64    `json:"price"`
 	PriceInteger  string   `json:"price_integer"`
 	PriceFraction string   `json:"price_fraction"`
 	Quantity      string   `json:"quantity"`
@@ -41,8 +42,8 @@ func (p *Product) Unmarshal(s string) error {
 		return err
 	} else if len(p.Name) < 3 {
 		return fmt.Errorf("bad name [%s], must be at least 3 characters in length", p.Name)
-	} else if p.PriceInteger == "" {
-		return fmt.Errorf("bad price (integer) [%s]", p.PriceInteger)
+	} else if p.Price < 0 {
+		return fmt.Errorf("bad price (integer) [%d]", p.Price)
 	} else if p.Id != "" {
 		return nil
 	} else if id, err := uuid.NewUUID(); err != nil {
