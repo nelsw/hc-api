@@ -50,6 +50,16 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return response.New().Code(http.StatusOK).Toke(cookie).Data(&u).Build()
 		}
 
+	case "find":
+		var u User
+		if id, err := service.ValidateSession(u.Session, ip); err != nil {
+			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
+		} else if err := service.FindOne(&table, &id, &u); err != nil {
+			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		} else {
+			return response.New().Code(http.StatusOK).Data(&u).Build()
+		}
+
 	case "update":
 		var u service.SliceUpdate
 		if err := json.Unmarshal([]byte(r.Body), &u); err != nil {
