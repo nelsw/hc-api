@@ -62,6 +62,7 @@ func Put(v interface{}, s *string) error {
 	if item, err := dynamodbattribute.MarshalMap(&v); err != nil {
 		return err
 	} else {
+		delete(item, "session")
 		_, err := db.PutItem(&dynamodb.PutItemInput{Item: item, TableName: s})
 		return err
 	}
@@ -72,6 +73,7 @@ func PutConditionally(v interface{}, s, c *string, e map[string]*dynamodb.Attrib
 	if item, err := dynamodbattribute.MarshalMap(&v); err == nil {
 		return err
 	} else {
+		delete(item, "session")
 		in := &dynamodb.PutItemInput{Item: item, TableName: s, ConditionExpression: c, ExpressionAttributeValues: e}
 		_, err := db.PutItem(in)
 		return err
