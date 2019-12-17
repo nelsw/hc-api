@@ -9,6 +9,49 @@ import (
 	"log"
 )
 
+type Request interface {
+	Handler(string) Request
+	Name(string) Request
+	Body(string) Request
+	QSP(string, string) Request
+	Build() (string, error)
+}
+
+type requestBuilder struct {
+	name string
+	body string
+	qsp  map[string]string
+}
+
+func (rb *requestBuilder) Handler(s string) Request {
+	rb.name = "hc" + s + "Handler"
+	return rb
+}
+
+func (rb *requestBuilder) Name(s string) Request {
+	rb.name = s
+	return rb
+}
+
+func (rb *requestBuilder) Body(s string) Request {
+	rb.body = s
+	return rb
+}
+
+func (rb *requestBuilder) QSP(k, v string) Request {
+	if rb.qsp == nil {
+		rb.qsp = map[string]string{}
+	}
+	rb.qsp[k] = v
+	return rb
+}
+
+func (rb *requestBuilder) Build() (string, error) {
+	return invoke(rb.name, rb.body, rb.qsp)
+}
+
+func Invoke() Request { return &requestBuilder{} }
+
 var lc *lambda.Lambda
 
 func init() {

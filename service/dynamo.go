@@ -51,6 +51,18 @@ func Get(tn, id *string) (*dynamodb.GetItemOutput, error) {
 	return db.GetItem(&dynamodb.GetItemInput{TableName: tn, Key: key(id)})
 }
 
+// similar to an ORM, this method returns a single entity by providing a table name and pk
+func FindOne(tn, id *string, v interface{}) error {
+	out, err := db.GetItem(&dynamodb.GetItemInput{TableName: tn, Key: key(id)})
+	if err != nil {
+		return err
+	} else if err := dynamodbattribute.UnmarshalMap(out.Item, &v); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
 // similar to Get(tn, id), this method returns a batch of entities by providing a table name and pks
 func GetBatch(keys []map[string]*dynamodb.AttributeValue, tableName string) (*dynamodb.BatchGetItemOutput, error) {
 	return db.BatchGetItem(&dynamodb.BatchGetItemInput{
