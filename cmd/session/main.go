@@ -34,8 +34,8 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "validate":
 		claims := &Claims{}
-		cookie := r.QueryStringParameters["cookie"]
-		token := regex.ReplaceAllString(cookie, `$2`)
+		session := r.QueryStringParameters["session"]
+		token := regex.ReplaceAllString(session, `$2`)
 		if tkn, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil {
 			// Either the token expired or the signature doesn't match.
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
