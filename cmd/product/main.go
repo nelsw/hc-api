@@ -9,32 +9,40 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/google/uuid"
-	response "github.com/nelsw/hc-util/aws"
-	"hc-api/service"
-	"net/http"
+	. "hc-api/service"
 	"os"
 	"strings"
 )
 
-var productTable = os.Getenv("PRODUCT_TABLE")
-
 type Product struct {
-	Id            string   `json:"id"`
-	Session       string   `json:"session"`
-	Sku           string   `json:"sku"`
-	Category      string   `json:"category"`
-	Subcategory   string   `json:"subcategory"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	Price         int64    `json:"price"`
-	PriceInteger  string   `json:"price_integer"`
-	PriceFraction string   `json:"price_fraction"`
-	Quantity      string   `json:"quantity"`
-	Unit          string   `json:"unit"`
-	Owner         string   `json:"owner"` // user_id
-	ImageSet      []string `json:"image_set"`
-	AddressId     string   `json:"address_id"`
-	ZipCode       string   `json:"zip_code"`
+	// ids and so forth.
+	Id        string `json:"id"`
+	Sku       string `json:"sku"`
+	AddressId string `json:"address_id"`
+	// not used, yet.
+	Category    string `json:"category"`
+	Subcategory string `json:"subcategory"`
+	// basic details.
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Price       int64    `json:"price"`
+	ImageSet    []string `json:"image_set"`
+	Quantity    string   `json:"quantity"`
+	// inches
+	Length int `json:"length"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
+	// pounds.ounces
+	Weight float32 `json:"weight"`
+	// deprecated
+	Unit          string `json:"unit"`
+	Owner         string `json:"owner"` // user_id
+	PriceInteger  string `json:"price_integer"`
+	PriceFraction string `json:"price_fraction"`
+	ZipCode       string `json:"zip_code"`
+
+	// transient
+	Session string `json:"session"`
 }
 
 func (p *Product) Unmarshal(s string) error {
@@ -55,7 +63,7 @@ func (p *Product) Unmarshal(s string) error {
 }
 
 func findAllProducts() ([]Product, error) {
-	if result, err := service.Scan(&productTable); err != nil {
+	if result, err := Scan(&table); err != nil {
 		return nil, err
 	} else {
 		var goods []Product
@@ -71,20 +79,22 @@ func findAllProducts() ([]Product, error) {
 	}
 }
 
-func findAllProductsByIds(ss *[]string) (*[]Product, error) {
+func findProductsByIds(ss *[]string) (*[]Product, error) {
 	var pp []Product
 	var keys []map[string]*dynamodb.AttributeValue
 	for _, s := range *ss {
 		keys = append(keys, map[string]*dynamodb.AttributeValue{"id": {S: aws.String(s)}})
 	}
-	if results, err := service.GetBatch(keys, productTable); err != nil {
+	if results, err := GetBatch(keys, table); err != nil {
 		return nil, err
-	} else if err := dynamodbattribute.UnmarshalListOfMaps(results.Responses[productTable], &pp); err != nil {
+	} else if err := dynamodbattribute.UnmarshalListOfMaps(results.Responses[table], &pp); err != nil {
 		return nil, err
 	} else {
 		return &pp, nil
 	}
 }
+
+var table = os.Getenv("PRODUCT_TABLE")
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
@@ -97,33 +107,42 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	case "save":
 		var p Product
 		if err := p.Unmarshal(r.Body); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if _, err := service.ValidateSession(p.Session, ip); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := service.Put(p, &productTable); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+			return BadGateway().Error(err).Build()
+		} else if _, err := ValidateSession(p.Session, ip); err != nil {
+			return Unauthorized().Error(err).Build()
+		} else if err := Put(p, &table); err != nil {
+			return InternalServerError().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&p).Build()
+			return Ok().Data(&p).Build()
 		}
 
 	case "find-all":
 		if products, err := findAllProducts(); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+			return InternalServerError().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&products).Build()
+			return Ok().Data(&products).Build()
+		}
+
+	case "find":
+		var p Product
+		id := r.QueryStringParameters["id"]
+		if err := FindOne(&table, &id, &p); err != nil {
+			return InternalServerError().Error(err).Build()
+		} else {
+			return Ok().Data(&p).Build()
 		}
 
 	case "find-by-ids":
 		csv := r.QueryStringParameters["ids"]
 		ids := strings.Split(csv, ",")
-		if products, err := findAllProductsByIds(&ids); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		if products, err := findProductsByIds(&ids); err != nil {
+			return InternalServerError().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&products).Build()
+			return Ok().Data(&products).Build()
 		}
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
 	}
 }
 
