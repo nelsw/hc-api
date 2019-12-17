@@ -17,12 +17,12 @@ var table = os.Getenv("USER_TABLE")
 // Primary user object for the domain, visible to client and server.
 // Each property is a reference to a unique ID, or collection of unique ID's.
 type User struct {
-	Id         string   `json:"id"`
-	ProfileId  string   `json:"profile_id"`
-	AddressIds []string `json:"address_ids"`
-	ProductIds []string `json:"product_ids"`
-	OrderIds   []string `json:"order_ids"`
-	SaleIds    []string `json:"sale_ids"`
+	Id         string   `json:"id,omitempty"`
+	ProfileId  string   `json:"profile_id,omitempty"`
+	AddressIds []string `json:"address_ids,omitempty"`
+	ProductIds []string `json:"product_ids,omitempty"`
+	OrderIds   []string `json:"order_ids,omitempty"`
+	SaleIds    []string `json:"sale_ids,omitempty"`
 	Session    string   `json:"session"`
 }
 
