@@ -21,8 +21,8 @@ import (
 var table = os.Getenv("USER_PROFILE_TABLE")
 
 type UserProfile struct {
-	Id        string `json:"id"`
 	Session   string `json:"session"`
+	Id        string `json:"id"`
 	Email     string `json:"email"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
@@ -34,6 +34,8 @@ type UserProfile struct {
 func (up *UserProfile) Unmarshal(s string) error {
 	if err := json.Unmarshal([]byte(s), &up); err != nil {
 		return err
+	} else if up.Id != "" {
+		return nil
 	} else if id, err := uuid.NewUUID(); err != nil {
 		return err
 	} else {
