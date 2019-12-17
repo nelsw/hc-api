@@ -82,7 +82,7 @@ func NewSession(id, ip string) (string, error) {
 }
 
 func ValidateSession(sess, ip string) (string, error) {
-	return invoke("hcSessionHandler", "", map[string]string{"cmd": "validate", "token": sess, "ip": ip})
+	return invoke("hcSessionHandler", "", map[string]string{"cmd": "validate", "session": sess, "ip": ip})
 }
 
 func invoke(name, body string, qsp map[string]string) (string, error) {
