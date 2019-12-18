@@ -12,7 +12,6 @@ import (
 	. "hc-api/service"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -46,10 +45,12 @@ type Order struct {
 	// report based data fields.
 	OrderSum int64 `json:"order_sum,omitempty"`
 	// transient variables, so to speak.
-	Session        string    `json:"session,omitempty"`
-	ProfileId      string    `json:"profile_id"`
-	Packages       []Package `json:"packages,omitempty"`
-	VendorPackages map[string]map[string]Package
+	Session   string `json:"session"`
+	ProfileId string `json:"profile_id,omitempty"`
+	// required for USPS
+	Packages []Package `json:"packages,omitempty"`
+	// Package Id (ie Product Id) -> Vendor Id -> Service Id (description) -> Rate (price).
+	Rates map[string]map[string]map[string]string `json:"rates,omitempty"`
 }
 
 // Product information for order history data integrity.
@@ -61,32 +62,31 @@ type Package struct {
 	ProductId     string `json:"product_id"`
 	AddressIdFrom string `json:"address_id_from,omitempty"`
 
-	ProductName   string  `json:"product_name"`
-	ProductPrice  int64   `json:"product_price"`
+	ZipOrigination string `json:"zip_origination"`
+	ZipDestination string `json:"zip_destination"`
+
+	ProductName  string `json:"product_name"`
+	ProductPrice int64  `json:"product_price"`
+
+	ProductPounds int     `json:"pounds"`
+	ProductOunces float32 `json:"ounces"`
 	ProductWeight float32 `json:"product_weight"`
-	ProductLength int     `json:"product_length"`
-	ProductWidth  int     `json:"product_width"`
-	ProductHeight int     `json:"product_height"`
-	ProductQty    int     `json:"product_qty"`
+
+	ProductLength int `json:"product_length"`
+	ProductWidth  int `json:"product_width"`
+	ProductHeight int `json:"product_height"`
+
+	ProductQty int `json:"product_qty"`
 
 	TotalLength int     `json:"length"`
 	TotalWidth  int     `json:"width"`
 	TotalHeight int     `json:"height"`
 	TotalWeight float32 `json:"weight"`
 
-	PostageVendor string  `json:"postage_vendor"`
-	PostageType   string  `json:"postage_type"`
-	PostagePrice  string  `json:"postage_price"`
-	TotalPrice    float32 `json:"total_price"`
+	TotalPrice float32 `json:"total_price"`
 
 	// transient
-	Postage     Postage `json:"postage"`
-	AddressIdTo string  `json:"address_id_to,omitempty"`
-
-	ZipOrigination string  `json:"zip_origination"`
-	ZipDestination string  `json:"zip_destination"`
-	ProductPounds  int     `json:"pounds"`
-	ProductOunces  float32 `json:"ounces"`
+	AddressIdTo string `json:"address_id_to,omitempty"`
 }
 
 type Postage struct {
@@ -96,128 +96,85 @@ type Postage struct {
 	Price  string `json:"postage_price"`
 }
 
-func (o *Order) Validate() error {
-	if o.Id != "" {
-		return nil
+func NewOrder(body, ip string) (Order, error) {
+	var o Order
+	if err := json.Unmarshal([]byte(body), &o); err != nil {
+		return o, err
+	} else if userId, err := ValidateSession(o.Session, ip); err != nil {
+		return o, err
 	} else if id, err := uuid.NewUUID(); err != nil {
-		return err
+		return o, err
 	} else {
 		o.Id = id.String()
-		return nil
-	}
-}
-
-func (p *Package) Validate() error {
-	if p.ProductId == "" || p.ProductQty < 1 {
-		return fmt.Errorf("bad product information")
-	} else if m, err := Invoke().Handler("Product").QSP("cmd", "find").QSP("id", p.ProductId).Build(); err != nil {
-		return err
-	} else if price, err := strconv.Atoi(fmt.Sprintf("%v", m["price"])); err != nil {
-		return err
-	} else if weight, err := strconv.Atoi(fmt.Sprintf("%v", m["weight"])); err != nil {
-		return err
-	} else if length, err := strconv.Atoi(fmt.Sprintf("%v", m["length"])); err != nil {
-		return err
-	} else if width, err := strconv.Atoi(fmt.Sprintf("%v", m["width"])); err != nil {
-		return err
-	} else if height, err := strconv.Atoi(fmt.Sprintf("%v", m["height"])); err != nil {
-		return err
-	} else {
-		p.AddressIdFrom = fmt.Sprintf("%v", m["address_id"])
-		p.ProductName = fmt.Sprintf("%v", m["name"])
-		p.ProductWeight = float32(weight)
-		p.ProductPounds = 1
-		p.ProductOunces = 0
-		p.ProductLength = int(length)
-		p.ProductWidth = int(width)
-		p.ProductHeight = int(height)
-		p.ProductPrice = int64(price)
-		p.TotalLength = p.ProductLength
-		p.TotalWeight = p.ProductWeight * float32(p.ProductQty)
-		p.TotalHeight = p.ProductHeight * p.ProductQty
-		p.TotalWidth = p.ProductWidth * p.ProductQty
-		bTo, _ := base64.StdEncoding.DecodeString(p.AddressIdFrom)
-		aTo := strings.Split(string(bTo), ", ")
-		p.ZipOrigination = strings.Split(aTo[len(aTo)-2], "-")[0]
-		bFr, _ := base64.StdEncoding.DecodeString(p.AddressIdTo)
-		aFr := strings.Split(string(bFr), ", ")
-		p.ZipDestination = strings.Split(aFr[len(aFr)-2], "-")[0]
-		if p.Id != "" {
-			return nil
-		} else if id, err := uuid.NewUUID(); err != nil {
-			return err
-		} else {
-			p.Id = id.String()
-			return nil
+		o.UserId = userId
+		for i, p := range o.Packages {
+			p.Id = p.ProductId
+			p.AddressIdTo = o.AddressId
+			p.TotalLength = p.ProductLength
+			p.TotalWeight = p.ProductWeight * float32(p.ProductQty)
+			p.TotalHeight = p.ProductHeight * p.ProductQty
+			p.TotalWidth = p.ProductWidth * p.ProductQty
+			bTo, _ := base64.StdEncoding.DecodeString(p.AddressIdFrom)
+			aTo := strings.Split(string(bTo), ", ")
+			p.ZipOrigination = strings.Split(aTo[len(aTo)-2], "-")[0]
+			bFr, _ := base64.StdEncoding.DecodeString(p.AddressIdTo)
+			aFr := strings.Split(string(bFr), ", ")
+			p.ZipDestination = strings.Split(aFr[len(aFr)-2], "-")[0]
+			o.Packages[i] = p
 		}
+		return o, nil
 	}
 }
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
 	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]\n", cmd, ip, r.Body)
+	body := r.Body
+	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]\n", cmd, ip, body)
 
 	switch cmd {
 
 	case "calc-rates":
-		var o Order
-		if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
-			return BadGateway().Error(err).Build()
-		} else if userId, err := ValidateSession(o.Session, ip); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := o.Validate(); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		if o, err := NewOrder(body, ip); err != nil {
+			return BadRequest().Error(err).Build()
 		} else if um, err := Invoke().Handler("User").QSP("cmd", "find").QSP("session", o.Session).QSP("ip", ip).Build(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if pm, err := Invoke().Handler("UserProfile").QSP("cmd", "find").QSP("id", fmt.Sprintf("%v", um["profile_id"])).Build(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else {
+			// we dont need to do this here, but we will need to do it prior to submitting final order
 			o.ProfileId = fmt.Sprintf("%v", um["profile_id"])
 			o.Status = cmd
-			o.UserId = userId
 			o.Email = fmt.Sprintf("%v", pm["email"])
 			o.Phone = fmt.Sprintf("%v", pm["phone"])
 			o.FirstName = fmt.Sprintf("%v", pm["first_name"])
 			o.LastName = fmt.Sprintf("%v", pm["last_name"])
-			for i, p := range o.Packages {
-				p.AddressIdTo = o.AddressId
-				if err := p.Validate(); err != nil {
-					return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-				}
-				o.Packages[i] = p
-				if o.VendorPackages == nil {
-					pm := map[string]Package{}
-					pm[p.Id] = p
-					vp := map[string]map[string]Package{}
-					vp["USPS"] = pm
-					o.VendorPackages = vp
-				}
-				pack := o.VendorPackages["USPS"][p.Id]
-				pack.PostagePrice = p.PostagePrice
-				o.VendorPackages["USPS"][p.Id] = pack
-			}
-			var newO Order
-			if err := Invoke().Handler("Shipping").QSP("cmd", "rate").Body(o).Marshal(&newO); err != nil {
+
+			n1, _ := NewOrder(body, ip)
+			n2, _ := NewOrder(body, ip)
+			if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "USPS").Body(n1).Marshal(&n1); err != nil {
+				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			} else if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "UPS").Body(n2).Marshal(&n2); err != nil {
 				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 			} else {
-				for _, p := range newO.Packages {
-					pack := o.VendorPackages["USPS"][p.Id]
-					pack.PostagePrice = p.PostagePrice
-					o.VendorPackages["USPS"][p.Id] = pack
+				o.Rates = n1.Rates
+				for k, v := range n2.Rates {
+					for k2, v2 := range v {
+						o.Rates[k][k2] = v2
+					}
 				}
-
+				fmt.Println(o)
+				fmt.Println(n1)
+				fmt.Println(n2)
+				o.Rates = n1.Rates
 				return Ok().Data(&o).Build()
 			}
 
 		}
 
 	case "save-order":
-		var o Order
-		if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
-			return BadGateway().Error(err).Build()
-		} else if err := o.Validate(); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		if o, err := NewOrder(body, ip); err != nil {
+			return BadRequest().Error(err).Build()
 		} else if exp, err := expression.NewBuilder().WithCondition(c).Build(); err != nil {
 			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 		} else if err := PutConditionally(o, &orderTable, exp.Condition(), exp.Values()); err != nil {
@@ -227,11 +184,8 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	case "save-order-packages":
-		var o Order
-		if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
-			return BadGateway().Error(err).Build()
-		} else if err := o.Validate(); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		if o, err := NewOrder(body, ip); err != nil {
+			return BadRequest().Error(err).Build()
 		} else {
 			if o.Session == "" {
 				o.UserId = ip
@@ -241,9 +195,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				o.UserId = id
 			}
 			for _, p := range o.Packages {
-				if err := p.Validate(); err != nil {
-					return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-				} else if err := Put(p, &packageTable); err != nil {
+				if err := Put(p, &packageTable); err != nil {
 					return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
 				} else {
 					o.PackageIds = append(o.PackageIds, p.Id)

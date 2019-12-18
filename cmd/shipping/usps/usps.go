@@ -44,16 +44,17 @@ type Address struct {
 }
 
 type RateRequest struct {
-	XMLName  xml.Name         `xml:"RateV4Request"`
-	UserId   string           `xml:"USERID,attr"`
-	Revision string           `xml:"Revision"`
-	Packages []PackageRequest `xml:"Package" json:"packages"`
+	XMLName  xml.Name                                `xml:"RateV4Request"`
+	UserId   string                                  `xml:"USERID,attr"`
+	Revision string                                  `xml:"Revision"`
+	Packages []PackageRequest                        `xml:"Package" json:"packages"`
+	Rates    map[string]map[string]map[string]string `json:"rates" xml:"-"`
 }
 
 type RateResponse struct {
-	XMLName  xml.Name          `xml:"RateV4Response"`
-	Packages []PackageResponse `json:"packages" xml:"Package"`
-	Vendor   string            `json:"vendor"`
+	XMLName  xml.Name                                `xml:"RateV4Response"`
+	Packages []PackageResponse                       `json:"packages" xml:"Package"`
+	Rates    map[string]map[string]map[string]string `json:"rates"`
 }
 
 type PackageRequest struct {
@@ -181,19 +182,19 @@ func GetPostage(s string) (RateResponse, error) {
 	} else if err := xml.Unmarshal([]byte(s), &out); err != nil {
 		return out, err
 	} else {
-		for i, packagePostage := range out.Packages {
-			out.Packages[i].Price = packagePostage.Postage.Price
-			out.Packages[i].Type = strings.Split(packagePostage.Postage.Type, "&")[0]
-			out.Packages[i].Vendor = "USPS"
+		packages := map[string]map[string]map[string]string{}
+		for _, p := range out.Packages {
+			service := map[string]string{}
+			// for each service...
+			t := strings.Split(p.Postage.Type, "&")[0]
+			service[t] = p.Postage.Price
+			// end for each service.
+			vendor := map[string]map[string]string{}
+			vendor["USPS"] = service
+			packages[p.Id] = vendor
 		}
-		if b, err := json.Marshal(&out); err != nil {
-			return out, err
-		} else if err := json.Unmarshal(b, &out); err != nil {
-			return out, err
-		} else {
-			out.Vendor = "USPS"
-			return out, nil
-		}
+		out.Rates = packages
+		return out, nil
 	}
 }
 

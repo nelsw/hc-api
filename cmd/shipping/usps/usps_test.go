@@ -31,7 +31,7 @@ func TestGetAddress(t *testing.T) {
 func TestGetPostage(t *testing.T) {
 
 	p := RateRequest{
-		Packages: []Package{
+		Packages: []PackageRequest{
 			{
 				Id:             "product-id-1",
 				ZipDestination: "90210",
