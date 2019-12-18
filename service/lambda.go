@@ -12,14 +12,15 @@ import (
 type Request interface {
 	Handler(string) Request
 	Name(string) Request
-	Body(string) Request
+	Body(interface{}) Request
 	QSP(string, string) Request
-	Build() (string, error)
+	Build() (map[string]interface{}, error)
+	Marshal(interface{}) error
 }
 
 type requestBuilder struct {
 	name string
-	body string
+	body interface{}
 	qsp  map[string]string
 }
 
@@ -33,8 +34,8 @@ func (rb *requestBuilder) Name(s string) Request {
 	return rb
 }
 
-func (rb *requestBuilder) Body(s string) Request {
-	rb.body = s
+func (rb *requestBuilder) Body(i interface{}) Request {
+	rb.body = i
 	return rb
 }
 
@@ -46,8 +47,50 @@ func (rb *requestBuilder) QSP(k, v string) Request {
 	return rb
 }
 
-func (rb *requestBuilder) Build() (string, error) {
-	return invoke(rb.name, rb.body, rb.qsp)
+func (rb *requestBuilder) Marshal(i interface{}) error {
+	if b, err := json.Marshal(rb.body); err != nil {
+		log.Println(rb.name)
+		log.Println(rb.qsp)
+		return err
+	} else if s, err := invoke(rb.name, string(b), rb.qsp); err != nil {
+		return err
+	} else if err := json.Unmarshal([]byte(s), &i); err != nil {
+		log.Println(s)
+		log.Println(rb.name)
+		log.Println(rb.qsp)
+		panic(err)
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (rb *requestBuilder) Build() (map[string]interface{}, error) {
+	var body string
+	if rb.body != nil {
+		if b, err := json.Marshal(rb.body); err != nil {
+			log.Println(rb.name)
+			log.Println(rb.qsp)
+			panic(err)
+			return nil, err
+		} else {
+			body = string(b)
+		}
+	}
+	if s, err := invoke(rb.name, body, rb.qsp); err != nil {
+		log.Println(rb.name)
+		log.Println(rb.qsp)
+		panic(err)
+		return nil, err
+	} else if err := json.Unmarshal([]byte(s), &rb.body); err != nil {
+		log.Println(s)
+		log.Println(rb.name)
+		log.Println(rb.qsp)
+		panic(err)
+		return nil, err
+	} else {
+		return rb.body.(map[string]interface{}), nil
+	}
 }
 
 func Invoke() Request { return &requestBuilder{} }

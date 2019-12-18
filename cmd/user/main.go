@@ -17,12 +17,12 @@ var table = os.Getenv("USER_TABLE")
 // Primary user object for the domain, visible to client and server.
 // Each property is a reference to a unique ID, or collection of unique ID's.
 type User struct {
-	Id         string   `json:"id,omitempty"`
-	ProfileId  string   `json:"profile_id,omitempty"`
-	AddressIds []string `json:"address_ids,omitempty"`
-	ProductIds []string `json:"product_ids,omitempty"`
-	OrderIds   []string `json:"order_ids,omitempty"`
-	SaleIds    []string `json:"sale_ids,omitempty"`
+	Id         string   `json:"id"`
+	ProfileId  string   `json:"profile_id"`
+	AddressIds []string `json:"address_ids"`
+	ProductIds []string `json:"product_ids"`
+	OrderIds   []string `json:"order_ids"`
+	SaleIds    []string `json:"sale_ids"`
 	Session    string   `json:"session"`
 }
 
@@ -52,10 +52,13 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "find":
 		var u User
-		if id, err := service.ValidateSession(u.Session, ip); err != nil {
+		session := r.QueryStringParameters["session"]
+		if id, err := service.ValidateSession(session, ip); err != nil {
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := service.FindOne(&table, &id, &u); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		} else if result, err := service.Get(&table, &id); err != nil {
+			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
+		} else if err := dynamodbattribute.UnmarshalMap(result.Item, &u); err != nil {
+			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
 		} else {
 			return response.New().Code(http.StatusOK).Data(&u).Build()
 		}

@@ -27,8 +27,8 @@ type Claims struct {
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
-	ip := r.QueryStringParameters["ip"]
-	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
+	ip := r.RequestContext.Identity.SourceIP
+	fmt.Printf("REQUEST [%s]: ip=[%s]", cmd, ip)
 
 	switch cmd {
 
@@ -39,7 +39,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if tkn, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil {
 			// Either the token expired or the signature doesn't match.
 			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if !tkn.Valid || claims.Ip != ip {
+		} else if !tkn.Valid || (claims.Ip != ip && ip != "") {
 			return response.New().Code(http.StatusUnauthorized).Text("bad token").Build()
 		} else {
 			return response.New().Code(http.StatusOK).Text(claims.Id).Build()

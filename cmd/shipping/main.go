@@ -4,37 +4,28 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	response "github.com/nelsw/hc-util/aws"
 	"hc-api/cmd/shipping/usps"
-	"net/http"
+	. "hc-api/service"
 )
 
-type RateResponse struct {
-	Usps []usps.Postage `json:"usps_postage"`
-}
-
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := r.QueryStringParameters["cmd"]
-	fmt.Printf("REQUEST [%s]: [%v]", cmd, r)
-
-	switch cmd {
-
+	fmt.Printf("REQUEST [%v]\n", r)
+	switch r.QueryStringParameters["cmd"] {
 	case "verify":
 		if a, err := usps.GetAddress(r.Body); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			return BadRequest().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&a).Build()
+			return Ok().Data(&a).Build()
 		}
-
 	case "rate":
+		fmt.Printf(r.Body)
 		if p, err := usps.GetPostage(r.Body); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			return BadRequest().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&p).Build()
+			return Ok().Data(&p).Build()
 		}
-
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Data(r).Build()
 	}
 }
 

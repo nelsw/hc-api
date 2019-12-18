@@ -44,18 +44,19 @@ type Address struct {
 }
 
 type RateRequest struct {
-	XMLName  xml.Name  `xml:"RateV4Request"`
-	UserId   string    `xml:"USERID,attr"`
-	Revision string    `xml:"Revision"`
-	Packages []Package `xml:"Package" json:"packages"`
+	XMLName  xml.Name         `xml:"RateV4Request"`
+	UserId   string           `xml:"USERID,attr"`
+	Revision string           `xml:"Revision"`
+	Packages []PackageRequest `xml:"Package" json:"packages"`
 }
 
 type RateResponse struct {
-	XMLName  xml.Name         `xml:"RateV4Response"`
-	Packages []PackagePostage `json:"packages" xml:"Package"`
+	XMLName  xml.Name          `xml:"RateV4Response"`
+	Packages []PackageResponse `json:"packages" xml:"Package"`
+	Vendor   string            `json:"vendor"`
 }
 
-type Package struct {
+type PackageRequest struct {
 	XMLName        xml.Name `xml:"Package"`
 	Id             string   `json:"id" xml:"ID,attr"`
 	Service        string   `json:"service,omitempty" xml:"Service"`
@@ -69,16 +70,22 @@ type Package struct {
 	Height         float32  `json:"height" xml:"Height"`
 	Girth          float32  `json:"girth" xml:"Girth"`
 	Machinable     string   `json:"machinable" xml:"Machinable"`
+	AddressIdTo    string   `json:"address_id_to" xml:"-"`
+	AddressIdFrom  string   `json:"address_id_from" xml:"-"`
+	Vendor         string   `json:"vendor" xml:"-"`
 }
 
-type PackagePostage struct {
+type PackageResponse struct {
 	XMLName        xml.Name `xml:"Package"`
 	Id             string   `xml:"ID,attr" json:"id"`
 	ZipOrigination string   `xml:"ZipOrigination" json:"zip_origination"`
 	ZipDestination string   `xml:"ZipDestination" json:"zip_destination"`
 	Pounds         int      `xml:"Pounds" json:"pounds"`
-	Ounces         int      `xml:"Ounces" json:"ounces"`
+	Ounces         float32  `xml:"Ounces" json:"ounces"`
 	Postage        Postage  `xml:"Postage" json:"postage"`
+	Type           string   `xml:"-" json:"postage_type"`
+	Price          string   `xml:"-" json:"postage_price"`
+	Vendor         string   `xml:"-" json:"postage_vendor"`
 }
 
 type Postage struct {
@@ -88,7 +95,7 @@ type Postage struct {
 	Price   string   `xml:"Rate" json:"price"`
 }
 
-func (p *Package) Validate() error {
+func (p *PackageRequest) Validate() error {
 	if p.ZipOrigination == "" {
 		return fmt.Errorf("bad zip origination ")
 	} else if p.ZipDestination == "" {
@@ -96,18 +103,19 @@ func (p *Package) Validate() error {
 	} else if p.Pounds == 0 {
 		return fmt.Errorf("bad pounds")
 	} else {
-		p.Service = "PRIORITY"
-		p.Container = "LG FLAT RATE BOX"
-		p.Machinable = "TRUE"
 		return nil
 	}
 }
 
 func (r *RateRequest) Validate() error {
-	for _, p := range r.Packages {
+	for i, p := range r.Packages {
 		if err := p.Validate(); err != nil {
 			return err
 		}
+		p.Service = "PRIORITY"
+		p.Container = "LG FLAT RATE BOX"
+		p.Machinable = "TRUE"
+		r.Packages[i] = p
 	}
 	r.Revision = "2"
 	r.UserId = uspsUserId
@@ -142,38 +150,50 @@ func (a *Address) String() string {
 
 func GetAddress(s string) (Address, error) {
 	var in VerificationRequest
-	var avr VerificationResponse
-	if err := json.Unmarshal([]byte(s), &in.Address); err != nil {
-		return avr.Address, err
+	var out VerificationResponse
+	if err := json.Unmarshal([]byte(s), &in); err != nil {
+		return out.Address, err
 	} else if err := in.Validate(); err != nil {
-		return avr.Address, err
+		return out.Address, err
 	} else if b, err := xml.Marshal(&in); err != nil {
-		return avr.Address, err
+		return out.Address, err
 	} else if s, err := getXML(ValidateApi + url.PathEscape(string(b))); err != nil {
-		return avr.Address, err
-	} else if err := xml.Unmarshal([]byte(s), &avr); err != nil {
-		return avr.Address, err
+		return out.Address, err
+	} else if err := xml.Unmarshal([]byte(s), &out); err != nil {
+		return out.Address, err
 	} else {
-		avr.Address.Id = base64.StdEncoding.EncodeToString([]byte(avr.Address.String()))
-		return avr.Address, nil
+		out.Address.Id = base64.StdEncoding.EncodeToString([]byte(out.Address.String()))
+		return out.Address, nil
 	}
 }
 
-func GetPostage(s string) ([]PackagePostage, error) {
+func GetPostage(s string) (RateResponse, error) {
 	var in RateRequest
 	var out RateResponse
 	if err := json.Unmarshal([]byte(s), &in); err != nil {
-		return out.Packages, err
+		return out, err
 	} else if err := in.Validate(); err != nil {
-		return out.Packages, err
+		return out, err
 	} else if b, err := xml.Marshal(in); err != nil {
-		return out.Packages, err
+		return out, err
 	} else if s, err := getXML(RateRequestApi + url.PathEscape(string(b))); err != nil {
-		return out.Packages, err
+		return out, err
 	} else if err := xml.Unmarshal([]byte(s), &out); err != nil {
-		return out.Packages, err
+		return out, err
 	} else {
-		return out.Packages, nil
+		for i, packagePostage := range out.Packages {
+			out.Packages[i].Price = packagePostage.Postage.Price
+			out.Packages[i].Type = strings.Split(packagePostage.Postage.Type, "&")[0]
+			out.Packages[i].Vendor = "USPS"
+		}
+		if b, err := json.Marshal(&out); err != nil {
+			return out, err
+		} else if err := json.Unmarshal(b, &out); err != nil {
+			return out, err
+		} else {
+			out.Vendor = "USPS"
+			return out, nil
+		}
 	}
 }
 
