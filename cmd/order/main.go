@@ -65,6 +65,9 @@ type Package struct {
 	ZipOrigination string `json:"zip_origination"`
 	ZipDestination string `json:"zip_destination"`
 
+	ShipperStateCode   string `json:"shipper_state_code"`
+	RecipientStateCode string `json:"recipient_state_code"`
+
 	ProductName  string `json:"product_name"`
 	ProductPrice int64  `json:"product_price"`
 
@@ -89,13 +92,6 @@ type Package struct {
 	AddressIdTo string `json:"address_id_to,omitempty"`
 }
 
-type Postage struct {
-	Id     string `json:"id"`
-	Vendor string `json:"vendor"`       // usps, ups, fedex
-	Type   string `json:"postage_type"` // priority, etc.
-	Price  string `json:"postage_price"`
-}
-
 func NewOrder(body, ip string) (Order, error) {
 	var o Order
 	if err := json.Unmarshal([]byte(body), &o); err != nil {
@@ -114,12 +110,17 @@ func NewOrder(body, ip string) (Order, error) {
 			p.TotalWeight = p.ProductWeight * float32(p.ProductQty)
 			p.TotalHeight = p.ProductHeight * p.ProductQty
 			p.TotalWidth = p.ProductWidth * p.ProductQty
-			bTo, _ := base64.StdEncoding.DecodeString(p.AddressIdFrom)
-			aTo := strings.Split(string(bTo), ", ")
-			p.ZipOrigination = strings.Split(aTo[len(aTo)-2], "-")[0]
-			bFr, _ := base64.StdEncoding.DecodeString(p.AddressIdTo)
-			aFr := strings.Split(string(bFr), ", ")
-			p.ZipDestination = strings.Split(aFr[len(aFr)-2], "-")[0]
+
+			aFrom, _ := base64.StdEncoding.DecodeString(p.AddressIdFrom)
+			arrFrom := strings.Split(string(aFrom), ", ")
+			p.ZipOrigination = strings.Split(arrFrom[len(arrFrom)-2], "-")[0]
+			p.ShipperStateCode = arrFrom[len(arrFrom)-3]
+
+			aTo, _ := base64.StdEncoding.DecodeString(p.AddressIdTo)
+			arrTo := strings.Split(string(aTo), ", ")
+			p.ZipDestination = strings.Split(arrTo[len(arrTo)-2], "-")[0]
+			p.RecipientStateCode = arrTo[len(arrTo)-3]
+
 			o.Packages[i] = p
 		}
 		return o, nil
@@ -152,9 +153,12 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 			n1, _ := NewOrder(body, ip)
 			n2, _ := NewOrder(body, ip)
+			n3, _ := NewOrder(body, ip)
 			if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "USPS").Body(n1).Marshal(&n1); err != nil {
 				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 			} else if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "UPS").Body(n2).Marshal(&n2); err != nil {
+				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			} else if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "FEDEX").Body(n3).Marshal(&n3); err != nil {
 				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 			} else {
 				o.Rates = n1.Rates
@@ -162,11 +166,13 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 					for k2, v2 := range v {
 						o.Rates[k][k2] = v2
 					}
+					for k3, v3 := range v {
+						o.Rates[k][k3] = v3
+					}
 				}
-				fmt.Println(o)
 				fmt.Println(n1)
 				fmt.Println(n2)
-				o.Rates = n1.Rates
+				fmt.Println(n3)
 				return Ok().Data(&o).Build()
 			}
 
