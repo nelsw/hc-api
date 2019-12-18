@@ -3,7 +3,6 @@ package ups
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -136,7 +135,6 @@ func GetRates(s string) (PostageRateResponse, error) {
 	} else {
 		packages := map[string]map[string]map[string]string{}
 		for _, p := range prr.Packages {
-			fmt.Println(p)
 			service := map[string]string{}
 			for k, v := range serviceTypeMap {
 				shipment := NewShipment(p.ZipOrigination, p.ZipDestination, p.Weight, p.Length, p.Width, p.Height, Type{k, v})
@@ -145,7 +143,6 @@ func GetRates(s string) (PostageRateResponse, error) {
 					return o, err
 				} else if o.RateResponse.RatedShipment.TotalCharges.Value != "" {
 					service[v] = o.RateResponse.RatedShipment.TotalCharges.Value
-					fmt.Println(o)
 				}
 
 			}
@@ -166,8 +163,6 @@ func DoRequest(prr PostageRateRequest) (PostageRateResponse, error) {
 	if err != nil {
 		return out, err
 	} else {
-		fmt.Println(prr)
-		fmt.Println(&prr)
 		client := &http.Client{Timeout: time.Duration(5 * time.Second)}
 		request.Header = header
 		if response, err := client.Do(request); err != nil {
@@ -177,7 +172,6 @@ func DoRequest(prr PostageRateRequest) (PostageRateResponse, error) {
 		} else if err := json.Unmarshal(body, &out); err != nil {
 			return out, err
 		} else {
-			fmt.Println(string(body))
 			return out, nil
 		}
 	}
