@@ -10,9 +10,11 @@ import (
 	"github.com/google/uuid"
 	response "github.com/nelsw/hc-util/aws"
 	. "hc-api/service"
+	"log"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 )
 
 var orderTable = os.Getenv("ORDER_TABLE")
@@ -50,7 +52,8 @@ type Order struct {
 	// required for USPS
 	Packages []Package `json:"packages,omitempty"`
 	// Package Id (ie Product Id) -> Vendor Id -> Service Id (description) -> Rate (price).
-	Rates map[string]map[string]map[string]string `json:"rates,omitempty"`
+	Rates  map[string]map[string]map[string]string `json:"rates,omitempty"`
+	Vendor string                                  `json:"-"`
 }
 
 // Product information for order history data integrity.
@@ -127,6 +130,15 @@ func NewOrder(body, ip string) (Order, error) {
 	}
 }
 
+func NewOrderResponse(body, ip, vendor string) (Order, error) {
+	if o, err := NewOrder(body, ip); err != nil {
+		return o, err
+	} else {
+		o.Vendor = vendor
+		return o, err
+	}
+}
+
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
 	ip := r.RequestContext.Identity.SourceIP
@@ -151,25 +163,43 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			o.FirstName = fmt.Sprintf("%v", pm["first_name"])
 			o.LastName = fmt.Sprintf("%v", pm["last_name"])
 
-			n1, _ := NewOrder(body, ip)
-			n2, _ := NewOrder(body, ip)
-			n3, _ := NewOrder(body, ip)
-			if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "USPS").Body(n1).Marshal(&n1); err != nil {
-				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-			} else if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "UPS").Body(n2).Marshal(&n2); err != nil {
-				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-			} else if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "FEDEX").Body(n3).Marshal(&n3); err != nil {
-				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-			} else {
-				for k, v := range n1.Rates {
-					v["UPS"] = n2.Rates[k]["UPS"]
-					v["FEDEX"] = n3.Rates[k]["FEDEX"]
-				}
-				o.Rates = n1.Rates
+			vs := []string{"UPS", "USPS", "FEDEX"}
 
-				return Ok().Data(&o).Build()
+			orders := make(chan Order)
+
+			var wg sync.WaitGroup
+			wg.Add(len(vs))
+
+			for _, v := range vs {
+				go func(v string) {
+					defer wg.Done()
+					o, _ := NewOrderResponse(body, ip, v)
+					err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
+					if err != nil {
+						log.Fatal(err)
+					} else {
+						orders <- o
+					}
+				}(v)
 			}
 
+			rates := map[string]map[string]map[string]string{}
+			go func() {
+				for o := range orders {
+					for k, v := range o.Rates {
+						if _, m := rates[k]; m {
+							rates[k][o.Vendor] = v[o.Vendor]
+						} else {
+							rates[k] = v
+						}
+					}
+				}
+			}()
+
+			wg.Wait()
+
+			o.Rates = rates
+			return Ok().Data(&o).Build()
 		}
 
 	case "save-order":
