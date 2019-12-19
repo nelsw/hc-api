@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"hc-api/cmd/shipping/fedex"
 	"hc-api/cmd/shipping/ups"
 	"hc-api/cmd/shipping/usps"
 	. "hc-api/service"
@@ -32,6 +33,12 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			}
 		} else if v == "UPS" {
 			if p, err := ups.GetRates(body); err != nil {
+				return BadRequest().Error(err).Build()
+			} else {
+				return Ok().Data(&p).Build()
+			}
+		} else if v == "FEDEX" {
+			if p, err := fedex.GetRates(body); err != nil {
 				return BadRequest().Error(err).Build()
 			} else {
 				return Ok().Data(&p).Build()

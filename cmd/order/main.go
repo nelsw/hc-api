@@ -161,18 +161,12 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			} else if err := Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", "FEDEX").Body(n3).Marshal(&n3); err != nil {
 				return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
 			} else {
-				o.Rates = n1.Rates
-				for k, v := range n2.Rates {
-					for k2, v2 := range v {
-						o.Rates[k][k2] = v2
-					}
-					for k3, v3 := range v {
-						o.Rates[k][k3] = v3
-					}
+				for k, v := range n1.Rates {
+					v["UPS"] = n2.Rates[k]["UPS"]
+					v["FEDEX"] = n3.Rates[k]["FEDEX"]
 				}
-				fmt.Println(n1)
-				fmt.Println(n2)
-				fmt.Println(n3)
+				o.Rates = n1.Rates
+
 				return Ok().Data(&o).Build()
 			}
 
