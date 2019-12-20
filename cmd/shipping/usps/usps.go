@@ -152,7 +152,7 @@ func (a *Address) String() string {
 func GetAddress(s string) (Address, error) {
 	var in VerificationRequest
 	var out VerificationResponse
-	if err := json.Unmarshal([]byte(s), &in); err != nil {
+	if err := json.Unmarshal([]byte(s), &in.Address); err != nil {
 		return out.Address, err
 	} else if err := in.Validate(); err != nil {
 		return out.Address, err
