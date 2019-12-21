@@ -18,11 +18,12 @@ TST_OUT=cp.out
 TST_DIR=./...
 
 # SAM local invoke properties.
-REQUEST_JSON=request.json
-TEMPLATE_YML=template.yml
+TMP_YML=template.yml
+TMP_JSON=testdata/tmp.json
+REQUEST_JSON=testdata/request.json
+TEMPLATE_YML=testdata/template.yml
 QSP=$(shell jq '.' testdata/${DOMAIN}/${CMD}/qsp.json -c)
 BODY=$(shell jq '.|tostring' testdata/${DOMAIN}/${CMD}/body.json)
-TMP=testdata/tmp.json
 
 # AWS Lambda Function (λƒ) properties.
 FUNCTION=handler
@@ -41,16 +42,15 @@ VARIABLES=$(shell jq '.Variables' testdata/${DOMAIN}/env.json -c)
 .PHONY: clean test build package invoke update create
 
 # Convenience method for initializing request.json and templte.yml files prior to executing the invoke command.
-# todo - include reseting request.json and template.yml to original values
 it: init-request init-template invoke clean
 
 # Removes build and package artifacts.
 clean:
-	rm -f ${TST_OUT}; rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${TMP}
+	rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${COVERAGE_REPORT}; rm -f ${TMP_YML}; rm -f ${TMP_JSON};
 
 # Tests the entire project and outputs a coverage profile.
 test:
-	go test -coverprofile ${TST_OUT} ${TST_DIR}
+	go test -coverprofile ${COVERAGE_REPORT} ${TST_DIR}
 
 # Update the request event with test specific query string parameters and body data.
 init-request:
@@ -59,15 +59,15 @@ init-request:
 
 # Update the sam template with domain and environment details.
 init-template:
-	jq -n '$(shell yq r -j template.yml)' > ${TMP};
+	jq -n '$(shell yq r -j ${TEMPLATE_YML})' > ${TMP_JSON};
 	jq '.Resources.handler.Properties.Environment.Variables=${VARIABLES} | \
 		.Resources.handler.Properties.Handler="${HANDLER}" | \
 		.Resources.handler.Properties.MemorySize=${MEMORY} | \
 		.Resources.handler.Properties.Runtime="${RUNTIME}" | \
 		.Resources.handler.Properties.Timeout=${TIMEOUT} | \
 		.Resources.handler.Properties.CodeUri="." | \
-		.Description=${DESC}' ${TMP} | sponge ${TMP};
-	yq r ${TMP} | sponge ${TEMPLATE_YML};
+		.Description=${DESC}' ${TMP_JSON} | sponge ${TMP_JSON};
+	yq r ${TMP_JSON} | sponge ${TMP_YML};
 
 # Builds the source executable from a specified path.
 build:
@@ -81,7 +81,7 @@ package: build
 # path to optional JSON file containing event data
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-local-invoke.html
 invoke: build package
-	sam local invoke -t ${TEMPLATE_YML} -e ${REQUEST_JSON} ${FUNCTION} \
+	sam local invoke -t ${TMP_YML} -e ${REQUEST_JSON} ${FUNCTION} \
 	| jq '{statusCode: .statusCode, headers: .headers,  body: .body|fromjson}'
 
 # Updates λƒ code with freshly packaged source.
