@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"log"
+	"time"
 )
 
 // Used to update an existing user item in an Amazon DynamoDB table.
@@ -51,43 +52,14 @@ func Get(tn, id *string) (*dynamodb.GetItemOutput, error) {
 	return db.GetItem(&dynamodb.GetItemInput{TableName: tn, Key: key(id)})
 }
 
-// similar to an ORM, this method returns a single entity by providing a table name and pk
-func FindOne(tn, id *string, v interface{}) error {
-	out, err := db.GetItem(&dynamodb.GetItemInput{TableName: tn, Key: key(id)})
-	if err != nil {
-		return err
-	} else if err := dynamodbattribute.UnmarshalMap(out.Item, &v); err != nil {
-		return err
-	} else {
-		return nil
-	}
-}
-
-// similar to Get(tn, id), this method returns a batch of entities by providing a table name and pks
-func GetBatch(keys []map[string]*dynamodb.AttributeValue, tableName string) (*dynamodb.BatchGetItemOutput, error) {
-	return db.BatchGetItem(&dynamodb.BatchGetItemInput{
-		RequestItems: map[string]*dynamodb.KeysAndAttributes{tableName: {Keys: keys}}})
-}
-
 // similar to merge or save, this method will only insert and update missing values
 func Put(v interface{}, s *string) error {
-	if item, err := dynamodbattribute.MarshalMap(&v); err != nil {
-		return err
-	} else {
-		delete(item, "session")
-		_, err := db.PutItem(&dynamodb.PutItemInput{Item: item, TableName: s})
-		return err
-	}
-}
-
-// like put but with a dynamodb condition expression
-func PutConditionally(v interface{}, s, c *string, e map[string]*dynamodb.AttributeValue) error {
 	if item, err := dynamodbattribute.MarshalMap(&v); err == nil {
 		return err
 	} else {
+		item["modified"] = &dynamodb.AttributeValue{S: aws.String(time.Now().UTC().Format(time.RFC3339))}
 		delete(item, "session")
-		in := &dynamodb.PutItemInput{Item: item, TableName: s, ConditionExpression: c, ExpressionAttributeValues: e}
-		_, err := db.PutItem(in)
+		_, err := db.PutItem(&dynamodb.PutItemInput{Item: item, TableName: s})
 		return err
 	}
 }
@@ -96,6 +68,21 @@ func PutConditionally(v interface{}, s, c *string, e map[string]*dynamodb.Attrib
 func Delete(id, table *string) error {
 	_, err := db.DeleteItem(&dynamodb.DeleteItemInput{Key: key(id), TableName: table})
 	return err
+}
+
+// similar to an ORM, this method returns a single entity by providing a table name and pk
+func FindOne(tn, id *string, v interface{}) error {
+	out, err := db.GetItem(&dynamodb.GetItemInput{TableName: tn, Key: key(id)})
+	if err == nil {
+		err = dynamodbattribute.UnmarshalMap(out.Item, &v)
+	}
+	return err
+}
+
+// similar to Get(tn, id), this method returns a batch of entities by providing a table name and pks
+func GetBatch(keys []map[string]*dynamodb.AttributeValue, tableName string) (*dynamodb.BatchGetItemOutput, error) {
+	return db.BatchGetItem(&dynamodb.BatchGetItemInput{
+		RequestItems: map[string]*dynamodb.KeysAndAttributes{tableName: {Keys: keys}}})
 }
 
 // as our data model leverages dynamodb's string slice, this method provides a means for updating an entities slice
