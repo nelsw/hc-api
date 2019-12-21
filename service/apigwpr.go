@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"net/http"
 )
@@ -72,7 +73,9 @@ func (b *builder) Build() (events.APIGatewayProxyResponse, error) {
 	if b.body == "" {
 		b.body = `{}`
 	}
-	return events.APIGatewayProxyResponse{StatusCode: b.status, Headers: b.headers, Body: b.body}, nil
+	r := events.APIGatewayProxyResponse{StatusCode: b.status, Headers: b.headers, Body: b.body}
+	fmt.Printf("RESPONSE [%v]", r)
+	return r, nil
 }
 
 func New() Response { return &builder{headers: headers} }
