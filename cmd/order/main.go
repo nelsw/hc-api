@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/google/uuid"
 	. "hc-api/service"
 	"log"
@@ -19,11 +18,6 @@ import (
 )
 
 var table = os.Getenv("ORDER_TABLE")
-var en = expression.Name("status")
-var c = expression.Or(
-	expression.AttributeNotExists(en),
-	expression.Equal(en, expression.Value("draft-1")),
-	expression.Equal(en, expression.Value("draft-2")))
 
 type Order struct {
 	Id        string `json:"id"`
