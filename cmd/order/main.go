@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/google/uuid"
 	. "hc-api/service"
@@ -15,8 +18,7 @@ import (
 	"sync"
 )
 
-var orderTable = os.Getenv("ORDER_TABLE")
-var packageTable = os.Getenv("PACKAGE_TABLE")
+var table = os.Getenv("ORDER_TABLE")
 var en = expression.Name("status")
 var c = expression.Or(
 	expression.AttributeNotExists(en),
@@ -24,32 +26,22 @@ var c = expression.Or(
 	expression.Equal(en, expression.Value("draft-2")))
 
 type Order struct {
-	Id         string   `json:"id"`
-	UserId     string   `json:"user_id"`
-	AddressId  string   `json:"address_id_to"`
-	PackageIds []string `json:"package_ids"`
-	// User Profile
-	FirstName string `json:"first_name,omitempty"`
-	LastName  string `json:"last_name,omitempty"`
-	Phone     string `json:"phone,omitempty"`
-	Email     string `json:"email,omitempty"`
-	// User Address (where order is being shipped)
-	Street string `json:"street,omitempty"`
-	Unit   string `json:"unit,omitempty"`
-	City   string `json:"city,omitempty"`
-	State  string `json:"state,omitempty"`
-	Zip5   string `json:"zip_5,omitempty"`
-	Zip4   string `json:"zip_4,omitempty"`
-	// report based data fields.
-	OrderSum int64 `json:"order_sum,omitempty"`
-	// transient variables, so to speak.
-	Session   string `json:"session"`
-	ProfileId string `json:"profile_id,omitempty"`
-	// required for USPS
-	Packages []Package `json:"packages"`
-	// Package Id (ie Product Id) -> Vendor Id -> Service Id (description) -> Rate (price).
-	Rates  map[string]map[string]map[string]string `json:"rates"`
-	Vendor string                                  `json:"-"`
+	Id        string `json:"id"`
+	UserId    string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	OrderSum  int64  `json:"order_sum"`
+	// Package Id (ie Product Id) -> Vendor Id -> Service Name -> Rate.
+	Rates    map[string]map[string]map[string]string `json:"rates,omitempty"`
+	Packages []Package                               `json:"packages"`
+	// transient data (when outside of this layer)
+	PackageIds []string `json:"package_ids,omitempty"`
+	Session    string   `json:"session"`
+	Vendor     string   `json:"-"`
+	// auditing
+	Modified string `json:"modified"`
 }
 
 // Product information for order history data integrity.
@@ -60,12 +52,13 @@ type Package struct {
 	// ids
 	Id            string `json:"id,omitempty"`
 	ProductId     string `json:"product_id"`
-	AddressIdFrom string `json:"address_id_from,omitempty"`
-	AddressIdTo   string `json:"address_id_to,omitempty"`
+	AddressIdFrom string `json:"address_id_from"`
+	AddressIdTo   string `json:"address_id_to"`
 	// product data
 	ProductName  string `json:"product_name"`
 	ProductPrice int64  `json:"product_price"`
 	ProductQty   int    `json:"product_qty"`
+	ProductImg   string `json:"product_img,omitempty"`
 	// usps
 	ZipOrigination string `json:"zip_origination"`
 	ZipDestination string `json:"zip_destination"`
@@ -87,7 +80,8 @@ type Package struct {
 	// vendor data
 	VendorName  string `json:"vendor_name"`
 	VendorType  string `json:"vendor_type"`
-	VendorPrice int    `json:"vendor_price"`
+	VendorPrice int64  `json:"vendor_price"`
+	TotalPrice  int64  `json:"total_price"`
 }
 
 func NewOrder(body, ip string) (Order, error) {
@@ -114,7 +108,7 @@ func NewOrder(body, ip string) (Order, error) {
 			p.ZipOrigination = strings.Split(arrFrom[len(arrFrom)-2], "-")[0]
 			p.ShipperStateCode = arrFrom[len(arrFrom)-3]
 
-			aTo, _ := base64.StdEncoding.DecodeString(o.AddressId)
+			aTo, _ := base64.StdEncoding.DecodeString(p.AddressIdTo)
 			arrTo := strings.Split(string(aTo), ", ")
 			p.ZipDestination = strings.Split(arrTo[len(arrTo)-2], "-")[0]
 			p.RecipientStateCode = arrTo[len(arrTo)-3]
@@ -141,6 +135,24 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]\n", cmd, ip, body)
 
 	switch cmd {
+
+	case "find-by-ids":
+		csv := r.QueryStringParameters["ids"]
+		ids := strings.Split(csv, ",")
+
+		var oo []Order
+		var keys []map[string]*dynamodb.AttributeValue
+		for _, s := range ids {
+			keys = append(keys, map[string]*dynamodb.AttributeValue{"id": {S: aws.String(s)}})
+		}
+
+		if results, err := GetBatch(keys, table); err != nil {
+			return BadRequest().Error(err).Build()
+		} else if err := dynamodbattribute.UnmarshalListOfMaps(results.Responses[table], &oo); err != nil {
+			return BadRequest().Error(err).Build()
+		}
+
+		return Ok().Data(&oo).Build()
 
 	case "calc-rates":
 		if o, err := NewOrder(body, ip); err != nil {
@@ -190,13 +202,9 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if o, err := NewOrder(body, ip); err != nil {
 			return BadGateway().Error(err).Build()
 		} else {
-			// save all packages
+			// sum all packages
 			for _, p := range o.Packages {
-				if err := Put(p, &packageTable); err != nil {
-					return BadRequest().Error(err).Build()
-				} else {
-					o.OrderSum += p.ProductPrice + int64(p.VendorPrice)
-				}
+				o.OrderSum += p.ProductPrice + int64(p.VendorPrice)
 			}
 			// find pertinent data for saving order
 			if um, err := Invoke().
@@ -212,16 +220,21 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				return BadRequest().Error(err).Build()
 			} else {
 				// we dont need to do this here, but we will need to do it prior to submitting final order
-				o.ProfileId = fmt.Sprintf("%v", um["profile_id"])
 				o.Email = fmt.Sprintf("%v", pm["email"])
 				o.Phone = fmt.Sprintf("%v", pm["phone"])
 				o.FirstName = fmt.Sprintf("%v", pm["first_name"])
 				o.LastName = fmt.Sprintf("%v", pm["last_name"])
-				// clear irrelevant data
-				o.Packages = nil
-				o.Rates = nil
-				if err := Put(o, &orderTable); err != nil {
+				o.PackageIds = nil
+				if err := Put(o, &table); err != nil {
 					return InternalServerError().Error(err).Build()
+				} else {
+					if _, err := Invoke().
+						Handler("User").
+						QSP("cmd", "update").
+						Body(SliceUpdate{Session: o.Session, Val: []string{o.Id}, Expression: "add order_ids :p"}).
+						Build(); err != nil {
+						return BadRequest().Error(err).Build()
+					}
 				}
 			}
 			return Ok().Build()
