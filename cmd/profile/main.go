@@ -21,14 +21,17 @@ import (
 var table = os.Getenv("USER_PROFILE_TABLE")
 
 type UserProfile struct {
-	Session   string `json:"session"`
-	Id        string `json:"id"`
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Phone     string `json:"phone"`
+	Id        string   `json:"id"`
+	BrandIds  []string `json:"brand_ids"`
+	Email     string   `json:"email"`
+	FirstName string   `json:"first_name"`
+	LastName  string   `json:"last_name"`
+	Phone     string   `json:"phone"`
+	// unused
 	Password1 string `json:"password_1,omitempty"`
 	Password2 string `json:"password_2,omitempty"`
+	// deprecated - todo, refactor to qsp.
+	Session string `json:"session"`
 }
 
 func (up *UserProfile) Unmarshal(s string) error {
@@ -48,7 +51,8 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	cmd := r.QueryStringParameters["cmd"]
 	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
+	session := r.QueryStringParameters["session"]
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
 	switch cmd {
 
