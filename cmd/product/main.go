@@ -59,7 +59,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
 	session := r.QueryStringParameters["session"]
-	fmt.Printf("REQUEST [%s]: ip=[%s], session=[%s], cmd=[%s], body=[%s]\n", cmd, ip, session, cmd, body)
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
 	switch cmd {
 
