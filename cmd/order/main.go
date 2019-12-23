@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/google/uuid"
 	. "hc-api/service"
 	"log"
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
-var table = os.Getenv("ORDER_TABLE")
+var t = os.Getenv("ORDER_TABLE")
 
 type Order struct {
 	Id        string `json:"id"`
@@ -35,7 +33,7 @@ type Order struct {
 	Session    string   `json:"session"`
 	Vendor     string   `json:"-"`
 	// auditing
-	Modified string `json:"modified"`
+	Created string `json:"created"`
 }
 
 // Product information for order history data integrity.
@@ -84,13 +82,17 @@ func NewOrder(body, ip string) (Order, error) {
 		return o, err
 	} else if userId, err := ValidateSession(o.Session, ip); err != nil {
 		return o, err
-	} else if id, err := uuid.NewUUID(); err != nil {
-		return o, err
 	} else {
-		o.Id = id.String()
+		if o.Id == "" {
+			id, _ := uuid.NewUUID()
+			o.Id = id.String()
+		}
 		o.UserId = userId
 		o.PackageIds = make([]string, len(o.Packages))
 		for i, p := range o.Packages {
+			if p.Id == "" {
+				continue
+			}
 			o.PackageIds = append(o.PackageIds, p.Id)
 			p.TotalLength = p.ProductLength
 			p.TotalWeight = p.ProductWeight * float32(p.ProductQty)
@@ -126,29 +128,25 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	cmd := r.QueryStringParameters["cmd"]
 	ip := r.RequestContext.Identity.SourceIP
 	body := r.Body
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]\n", cmd, ip, body)
+	fmt.Printf("REQUEST cmd=[%s] ip=[%s] body=[%s]\n", cmd, body, ip)
 
 	switch cmd {
 
 	case "find-by-ids":
-		csv := r.QueryStringParameters["ids"]
-		ids := strings.Split(csv, ",")
-
-		var oo []Order
-		var keys []map[string]*dynamodb.AttributeValue
-		for _, s := range ids {
-			keys = append(keys, map[string]*dynamodb.AttributeValue{"id": {S: aws.String(s)}})
-		}
-
-		if results, err := GetBatch(keys, table); err != nil {
+		var p []Order
+		ss := strings.Split(r.QueryStringParameters["ids"], ",")
+		if err := FindAllById(t, ss, &p); err != nil {
 			return BadRequest().Error(err).Build()
-		} else if err := dynamodbattribute.UnmarshalListOfMaps(results.Responses[table], &oo); err != nil {
-			return BadRequest().Error(err).Build()
+		} else {
+			return Ok().Data(&p).Build()
 		}
-
-		return Ok().Data(&oo).Build()
 
 	case "calc-rates":
+		var p Order
+		if err := json.Unmarshal([]byte(body), &p); err != nil {
+			return BadGateway().Error(err).Build()
+		}
+		fmt.Println(p)
 		if o, err := NewOrder(body, ip); err != nil {
 			return BadGateway().Error(err).Build()
 		} else {
@@ -193,6 +191,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	case "save-order":
+		var p Order
+		if err := json.Unmarshal([]byte(body), &p); err != nil {
+			return BadGateway().Error(err).Build()
+		}
+		fmt.Println(p)
 		if o, err := NewOrder(body, ip); err != nil {
 			return BadGateway().Error(err).Build()
 		} else {
@@ -201,11 +204,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				o.OrderSum += p.ProductPrice + int64(p.VendorPrice)
 			}
 			// find pertinent data for saving order
-			if um, err := Invoke().
-				Handler("User").
-				QSP("cmd", "find").
-				QSP("session", o.Session).
-				QSP("ip", ip).Build(); err != nil {
+			if um, err := Invoke().Handler("User").IP(ip).QSP("cmd", "find").QSP("session", o.Session).Build(); err != nil {
 				return BadRequest().Error(err).Build()
 			} else if pm, err := Invoke().
 				Handler("UserProfile").
@@ -219,19 +218,19 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				o.FirstName = fmt.Sprintf("%v", pm["first_name"])
 				o.LastName = fmt.Sprintf("%v", pm["last_name"])
 				o.PackageIds = nil
-				if err := Put(o, &table); err != nil {
+				o.Created = time.Now().UTC().Format(time.RFC3339)
+				if err := Put(o, &t); err != nil {
 					return InternalServerError().Error(err).Build()
+				} else if _, err := Invoke().
+					Handler("User").
+					QSP("cmd", "update").
+					Body(SliceUpdate{Session: o.Session, Val: []string{o.Id}, Expression: "add order_ids :p"}).
+					Build(); err != nil {
+					return BadRequest().Error(err).Build()
 				} else {
-					if _, err := Invoke().
-						Handler("User").
-						QSP("cmd", "update").
-						Body(SliceUpdate{Session: o.Session, Val: []string{o.Id}, Expression: "add order_ids :p"}).
-						Build(); err != nil {
-						return BadRequest().Error(err).Build()
-					}
+					return Ok().Data(&o).Build()
 				}
 			}
-			return Ok().Build()
 		}
 
 	default:

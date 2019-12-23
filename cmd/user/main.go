@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	response "github.com/nelsw/hc-util/aws"
 	"hc-api/service"
+	. "hc-api/service"
 	"net/http"
 	"os"
 )
@@ -30,57 +29,54 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	cmd := r.QueryStringParameters["cmd"]
 	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
+	session := r.QueryStringParameters["session"]
+	fmt.Printf("REQUEST [%s]: ip=[%s], session=[%s], cmd=[%s], body=[%s]\n", cmd, ip, session, cmd, body)
 
 	switch cmd {
 
 	case "login":
 		var u User
 		if id, err := service.VerifyCredentials(body); err != nil {
-			return response.New().Code(http.StatusBadGateway).Text(err.Error()).Build()
-		} else if result, err := service.Get(&table, &id); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if err := dynamodbattribute.UnmarshalMap(result.Item, &u); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
+			return BadGateway().Error(err).Build()
+		} else if err := service.FindOne(&table, &id, &u); err != nil {
+			return BadRequest().Error(err).Build()
 		} else if cookie, err := service.NewSession(u.Id, ip); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Build()
+			return InternalServerError().Error(err).Build()
 		} else {
 			u.Session = cookie
 			u.Id = "" // keep user id hidden
-			return response.New().Code(http.StatusOK).Toke(cookie).Data(&u).Build()
+			return Ok().Data(&u).Build()
 		}
 
 	case "find":
 		var u User
 		session := r.QueryStringParameters["session"]
 		if id, err := service.ValidateSession(session, ip); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if result, err := service.Get(&table, &id); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if err := dynamodbattribute.UnmarshalMap(result.Item, &u); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
+			return Unauthorized().Error(err).Build()
+		} else if err := service.FindOne(&table, &id, &u); err != nil {
+			return BadRequest().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&u).Build()
+			return Ok().Data(&u).Build()
 		}
 
 	case "update":
 		var u service.SliceUpdate
 		if err := json.Unmarshal([]byte(r.Body), &u); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+			return BadRequest().Error(err).Build()
 		} else if id, err := service.ValidateSession(u.Session, ip); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
+			return Unauthorized().Error(err).Build()
 		} else if err := service.UpdateSlice(&id, &u.Expression, &table, &u.Val); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+			return InternalServerError().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Build()
+			return Ok().Build()
 		}
 
 	case "register":
 		// todo - create User, UserPassword, and UserProfile entities ... also verify email address.
-		return response.New().Code(http.StatusNotImplemented).Build()
+		return New().Code(http.StatusNotImplemented).Build()
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Data(r).Build()
 	}
 }
 
