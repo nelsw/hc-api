@@ -34,12 +34,12 @@ type VerificationResponse struct {
 
 type Address struct {
 	XMLName xml.Name `xml:"Address"`
-	Id      string   `json:"id,omitempty" xml:"ID,attr"`
-	Unit    string   `json:"unit,omitempty" xml:"Address1,omitempty"`
-	Street  string   `json:"street,omitempty" xml:"Address2,omitempty"`
-	City    string   `json:"city,omitempty" xml:"City"`
-	State   string   `json:"state,omitempty" xml:"State"`
-	Zip5    string   `json:"zip_5,omitempty" xml:"Zip5"`
+	Id      string   `json:"id" xml:"ID,attr"`
+	Unit    string   `json:"unit,omitempty" xml:"Address1"`
+	Street  string   `json:"street" xml:"Address2"`
+	City    string   `json:"city" xml:"City"`
+	State   string   `json:"state" xml:"State"`
+	Zip5    string   `json:"zip_5" xml:"Zip5"`
 	Zip4    string   `json:"zip_4,omitempty" xml:"Zip4"`
 }
 
