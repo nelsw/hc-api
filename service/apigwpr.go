@@ -41,7 +41,8 @@ func (b *builder) Code(statusCode int) Response {
 }
 
 func (b *builder) Text(body string) Response {
-	b.body = body
+	bytes, _ := json.Marshal(&map[string]string{"message": body})
+	b.body = string(bytes)
 	return b
 }
 
