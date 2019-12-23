@@ -20,8 +20,8 @@ type User struct {
 	ProfileId  string   `json:"profile_id"`
 	AddressIds []string `json:"address_ids"`
 	ProductIds []string `json:"product_ids"`
-	OrderIds   []string `json:"order_ids"`
-	SaleIds    []string `json:"sale_ids"`
+	OrderIds   []string `json:"order_ids,omitempty"`
+	SaleIds    []string `json:"sale_ids,omitempty"`
 	Session    string   `json:"session"`
 }
 
