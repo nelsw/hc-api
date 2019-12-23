@@ -22,7 +22,9 @@ type User struct {
 	ProductIds []string `json:"product_ids"`
 	OrderIds   []string `json:"order_ids,omitempty"`
 	SaleIds    []string `json:"sale_ids,omitempty"`
-	Session    string   `json:"session"`
+	OfferIds   []string `json:"sale_ids,omitempty"`
+	// deprecated - todo, refactor to qsp.
+	Session string `json:"session"`
 }
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -30,7 +32,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
 	session := r.QueryStringParameters["session"]
-	fmt.Printf("REQUEST [%s]: ip=[%s], session=[%s], cmd=[%s], body=[%s]\n", cmd, ip, session, cmd, body)
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
 	switch cmd {
 
