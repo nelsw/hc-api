@@ -14,14 +14,15 @@ type Request interface {
 	Name(string) Request
 	Body(interface{}) Request
 	QSP(string, string) Request
+	IP(string) Request
 	Build() (map[string]interface{}, error)
 	Marshal(interface{}) error
 }
 
 type requestBuilder struct {
-	name string
-	body interface{}
-	qsp  map[string]string
+	name, ip string
+	body     interface{}
+	qsp      map[string]string
 }
 
 func (rb *requestBuilder) Handler(s string) Request {
@@ -44,6 +45,11 @@ func (rb *requestBuilder) QSP(k, v string) Request {
 		rb.qsp = map[string]string{}
 	}
 	rb.qsp[k] = v
+	return rb
+}
+
+func (rb *requestBuilder) IP(s string) Request {
+	rb.ip = s
 	return rb
 }
 
@@ -129,8 +135,21 @@ func ValidateSession(sess, ip string) (string, error) {
 }
 
 func invoke(name, body string, qsp map[string]string) (string, error) {
+	return invocation(name, body, "", qsp)
+}
+
+func invocation(name, body, ip string, qsp map[string]string) (string, error) {
 	var resp events.APIGatewayProxyResponse
-	if payload, err := json.Marshal(events.APIGatewayProxyRequest{QueryStringParameters: qsp, Body: body}); err != nil {
+	request := events.APIGatewayProxyRequest{
+		QueryStringParameters: qsp,
+		Body:                  body,
+		RequestContext: events.APIGatewayProxyRequestContext{
+			Identity: events.APIGatewayRequestIdentity{
+				SourceIP: ip,
+			},
+		},
+	}
+	if payload, err := json.Marshal(request); err != nil {
 		return "", err
 	} else if r, err := lc.Invoke(&lambda.InvokeInput{FunctionName: aws.String(name), Payload: payload}); err != nil {
 		return "", err
