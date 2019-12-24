@@ -5,7 +5,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
-	response "github.com/nelsw/hc-util/aws"
+	. "hc-api/service"
 	"net/http"
 	"os"
 	"regexp"
@@ -27,8 +27,10 @@ type Claims struct {
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cmd := r.QueryStringParameters["cmd"]
+	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s]", cmd, ip)
+	session := r.QueryStringParameters["session"]
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
 	switch cmd {
 
@@ -38,11 +40,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		token := regex.ReplaceAllString(session, `$2`)
 		if tkn, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil {
 			// Either the token expired or the signature doesn't match.
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
+			return Unauthorized().Error(err).Build()
 		} else if !tkn.Valid || (claims.Ip != ip && ip != "") {
-			return response.New().Code(http.StatusUnauthorized).Text("bad token").Build()
+			return Unauthorized().Text("bad token").Build()
 		} else {
-			return response.New().Code(http.StatusOK).Text(claims.Id).Build()
+			return Ok().Text(claims.Id).Build()
 		}
 
 	case "create":
@@ -58,7 +60,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		})
 		// Create the JWT string.
 		if tokenString, err := token.SignedString(jwtKey); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+			return InternalServerError().Error(err).Build()
 		} else {
 			// Finally, we set the client cookie for "token" as the JWT we just generated
 			// we also set an expiry time which is the same as the token itself.
@@ -68,11 +70,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				Expires:  expiry,
 				HttpOnly: false,
 			}
-			return response.New().Code(http.StatusOK).Text(cookie.String()).Build()
+			return Ok().Text(cookie.String()).Build()
 		}
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Data(r).Build()
 	}
 }
 
