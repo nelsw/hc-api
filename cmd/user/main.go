@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/service"
 	. "hc-api/service"
 	"net/http"
 	"os"
@@ -23,8 +22,7 @@ type User struct {
 	OrderIds   []string `json:"order_ids,omitempty"`
 	SaleIds    []string `json:"sale_ids,omitempty"`
 	OfferIds   []string `json:"sale_ids,omitempty"`
-	// deprecated - todo, refactor to qsp.
-	Session string `json:"session"`
+	Session    string   `json:"session"`
 }
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -38,11 +36,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "login":
 		var u User
-		if id, err := service.VerifyCredentials(body); err != nil {
+		if id, err := VerifyCredentials(body); err != nil {
 			return BadGateway().Error(err).Build()
-		} else if err := service.FindOne(&table, &id, &u); err != nil {
+		} else if err := FindOne(&table, &id, &u); err != nil {
 			return BadRequest().Error(err).Build()
-		} else if cookie, err := service.NewSession(u.Id, ip); err != nil {
+		} else if cookie, err := NewSession(id, ip); err != nil {
 			return InternalServerError().Error(err).Build()
 		} else {
 			u.Session = cookie
@@ -53,21 +51,21 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	case "find":
 		var u User
 		session := r.QueryStringParameters["session"]
-		if id, err := service.ValidateSession(session, ip); err != nil {
+		if id, err := ValidateSession(session, ip); err != nil {
 			return Unauthorized().Error(err).Build()
-		} else if err := service.FindOne(&table, &id, &u); err != nil {
+		} else if err := FindOne(&table, &id, u); err != nil {
 			return BadRequest().Error(err).Build()
 		} else {
 			return Ok().Data(&u).Build()
 		}
 
 	case "update":
-		var u service.SliceUpdate
+		var u SliceUpdate
 		if err := json.Unmarshal([]byte(r.Body), &u); err != nil {
 			return BadRequest().Error(err).Build()
-		} else if id, err := service.ValidateSession(u.Session, ip); err != nil {
+		} else if id, err := ValidateSession(u.Session, ip); err != nil {
 			return Unauthorized().Error(err).Build()
-		} else if err := service.UpdateSlice(&id, &u.Expression, &table, &u.Val); err != nil {
+		} else if err := UpdateSlice(&id, &u.Expression, &table, &u.Val); err != nil {
 			return InternalServerError().Error(err).Build()
 		} else {
 			return Ok().Build()

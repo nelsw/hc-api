@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	response "github.com/nelsw/hc-util/aws"
-	"hc-api/service"
+	. "hc-api/service"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var table = os.Getenv("USERNAME_TABLE")
@@ -18,6 +17,16 @@ var table = os.Getenv("USERNAME_TABLE")
 type UserCredentials struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+func NewUserCredentials(s string) (UserCredentials, error) {
+	var p UserCredentials
+	if err := json.Unmarshal([]byte(s), &p); err != nil {
+		return p, err
+	} else {
+		p.Email = strings.ToLower(p.Email)
+		return p, nil
+	}
 }
 
 // Data structure for securely associating user entities with their username.
@@ -31,27 +40,25 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	cmd := r.QueryStringParameters["cmd"]
 	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
+	session := r.QueryStringParameters["session"]
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
 	switch cmd {
 
 	case "verify":
-		var uc UserCredentials
 		var un Username
-		if err := json.Unmarshal([]byte(body), &uc); err != nil {
-			return response.New().Code(http.StatusBadGateway).Text(err.Error()).Build()
-		} else if result, err := service.Get(&table, &uc.Email); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if err := dynamodbattribute.UnmarshalMap(result.Item, &un); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if err := service.VerifyPassword(uc.Password, un.PasswordId); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
+		if uc, err := NewUserCredentials(body); err != nil {
+			return BadGateway().Error(err).Build()
+		} else if err := FindOne(&table, &uc.Email, &un); err != nil {
+			return New().Code(http.StatusNotFound).Error(err).Build()
+		} else if err := VerifyPassword(uc.Password, un.PasswordId); err != nil {
+			return Unauthorized().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Text(un.UserId).Build()
+			return Ok().Str(un.UserId).Build()
 		}
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Data(r).Build()
 	}
 }
 

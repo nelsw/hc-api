@@ -16,6 +16,7 @@ type Response interface {
 	Head(Headers) Response
 	Code(int) Response
 	Text(string) Response
+	Str(string) Response
 	Data(Object) Response
 	Error(error) Response
 	Token(string) Response
@@ -37,6 +38,11 @@ func (b *builder) Head(headers Headers) Response {
 
 func (b *builder) Code(statusCode int) Response {
 	b.status = statusCode
+	return b
+}
+
+func (b *builder) Str(s string) Response {
+	b.body = s
 	return b
 }
 

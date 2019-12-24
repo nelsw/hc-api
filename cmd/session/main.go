@@ -44,7 +44,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		} else if !tkn.Valid || (claims.Ip != ip && ip != "") {
 			return Unauthorized().Text("bad token").Build()
 		} else {
-			return Ok().Text(claims.Id).Build()
+			return Ok().Str(claims.Id).Build()
 		}
 
 	case "create":
@@ -70,7 +70,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				Expires:  expiry,
 				HttpOnly: false,
 			}
-			return Ok().Text(cookie.String()).Build()
+			return Ok().Str(cookie.String()).Build()
 		}
 
 	default:
