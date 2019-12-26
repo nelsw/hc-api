@@ -10,11 +10,13 @@ import (
 )
 
 type Request interface {
+	CMD(string) Request
 	Handler(string) Request
 	Name(string) Request
 	Body(interface{}) Request
 	QSP(string, string) Request
 	IP(string) Request
+	Session(string) Request
 	Build() (map[string]interface{}, error)
 	Marshal(interface{}) error
 }
@@ -42,7 +44,7 @@ func (rb *requestBuilder) Body(i interface{}) Request {
 
 func (rb *requestBuilder) QSP(k, v string) Request {
 	if rb.qsp == nil {
-		rb.qsp = map[string]string{}
+		rb.qsp = make(map[string]string)
 	}
 	rb.qsp[k] = v
 	return rb
@@ -53,12 +55,22 @@ func (rb *requestBuilder) IP(s string) Request {
 	return rb
 }
 
+func (rb *requestBuilder) Session(s string) Request {
+	rb.QSP("session", s)
+	return rb
+}
+
+func (rb *requestBuilder) CMD(s string) Request {
+	rb.QSP("cmd", s)
+	return rb
+}
+
 func (rb *requestBuilder) Marshal(i interface{}) error {
 	if b, err := json.Marshal(rb.body); err != nil {
 		log.Println(rb.name)
 		log.Println(rb.qsp)
 		return err
-	} else if s, err := invoke(rb.name, string(b), rb.qsp); err != nil {
+	} else if s, err := invocation(rb.name, string(b), rb.ip, rb.qsp); err != nil {
 		return err
 	} else if err := json.Unmarshal([]byte(s), &i); err != nil {
 		log.Println(s)
@@ -83,7 +95,7 @@ func (rb *requestBuilder) Build() (map[string]interface{}, error) {
 			body = string(b)
 		}
 	}
-	if s, err := invoke(rb.name, body, rb.qsp); err != nil {
+	if s, err := invocation(rb.name, body, rb.ip, rb.qsp); err != nil {
 		log.Println(rb.name)
 		log.Println(rb.qsp)
 		panic(err)

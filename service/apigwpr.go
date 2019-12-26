@@ -104,3 +104,7 @@ func BadGateway() Response {
 func InternalServerError() Response {
 	return &builder{status: http.StatusInternalServerError, headers: headers}
 }
+
+func NotFound() Response {
+	return &builder{status: http.StatusNotFound, headers: headers}
+}
