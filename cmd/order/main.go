@@ -194,21 +194,17 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		var p Order
 		if err := json.Unmarshal([]byte(body), &p); err != nil {
 			return BadGateway().Error(err).Build()
-		}
-		fmt.Println(p)
-		if o, err := NewOrder(body, ip); err != nil {
+		} else if o, err := NewOrder(body, ip); err != nil {
 			return BadGateway().Error(err).Build()
 		} else {
 			// sum all packages
 			for _, p := range o.Packages {
-				o.OrderSum += p.ProductPrice + int64(p.VendorPrice)
+				o.OrderSum += p.ProductPrice + p.VendorPrice
 			}
 			// find pertinent data for saving order
-			if um, err := Invoke().Handler("User").IP(ip).QSP("cmd", "find").QSP("session", o.Session).Build(); err != nil {
+			if um, err := Invoke().Handler("User").IP(ip).CMD("find").Session(o.Session).Build(); err != nil {
 				return BadRequest().Error(err).Build()
-			} else if pm, err := Invoke().
-				Handler("UserProfile").
-				QSP("cmd", "find").
+			} else if pm, err := Invoke().Handler("UserProfile").IP(ip).Session(o.Session).CMD("find").
 				QSP("id", fmt.Sprintf("%v", um["profile_id"])).Build(); err != nil {
 				return BadRequest().Error(err).Build()
 			} else {
