@@ -10,11 +10,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/google/uuid"
-	response "github.com/nelsw/hc-util/aws"
-	"hc-api/service"
-	"net/http"
+	. "hc-api/service"
 	"os"
 )
 
@@ -52,35 +49,33 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	body := r.Body
 	ip := r.RequestContext.Identity.SourceIP
 	session := r.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]", cmd, ip, session, body)
 
 	switch cmd {
 
 	case "save":
-		var up UserProfile
-		if err := up.Unmarshal(r.Body); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
-		} else if _, err := service.ValidateSession(up.Session, ip); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Text(err.Error()).Build()
-		} else if err := service.Put(up, &table); err != nil {
-			return response.New().Code(http.StatusInternalServerError).Text(err.Error()).Build()
+		var p UserProfile
+		if err := p.Unmarshal(r.Body); err != nil {
+			return BadRequest().Error(err).Build()
+		} else if _, err := ValidateSession(p.Session, ip); err != nil {
+			return Unauthorized().Error(err).Build()
+		} else if err := Put(p, &table); err != nil {
+			return InternalServerError().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&up).Build()
+			return Ok().Data(&p).Build()
 		}
 
 	case "find":
-		var up UserProfile
+		var p UserProfile
 		id := r.QueryStringParameters["id"]
-		if result, err := service.Get(&table, &id); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if err := dynamodbattribute.UnmarshalMap(result.Item, &up); err != nil {
-			return response.New().Code(http.StatusBadRequest).Text(err.Error()).Build()
+		if err := FindOne(&table, &id, p); err != nil {
+			return NotFound().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Data(&up).Build()
+			return Ok().Data(&p).Build()
 		}
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Data(r).Build()
 	}
 }
 
