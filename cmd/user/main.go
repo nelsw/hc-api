@@ -53,7 +53,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		session := r.QueryStringParameters["session"]
 		if id, err := ValidateSession(session, ip); err != nil {
 			return Unauthorized().Error(err).Build()
-		} else if err := FindOne(&table, &id, u); err != nil {
+		} else if err := FindOne(&table, &id, &u); err != nil {
 			return BadRequest().Error(err).Build()
 		} else {
 			return Ok().Data(&u).Build()
