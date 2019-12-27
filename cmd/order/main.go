@@ -191,10 +191,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	case "save-order":
-		var p Order
-		if err := json.Unmarshal([]byte(body), &p); err != nil {
-			return BadGateway().Error(err).Build()
-		} else if o, err := NewOrder(body, ip); err != nil {
+		if o, err := NewOrder(body, ip); err != nil {
 			return BadGateway().Error(err).Build()
 		} else {
 			// sum all packages

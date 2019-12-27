@@ -68,7 +68,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	case "find":
 		var p UserProfile
 		id := r.QueryStringParameters["id"]
-		if err := FindOne(&table, &id, p); err != nil {
+		if err := FindOne(&table, &id, &p); err != nil {
 			return NotFound().Error(err).Build()
 		} else {
 			return Ok().Data(&p).Build()
