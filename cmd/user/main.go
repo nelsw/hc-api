@@ -24,9 +24,13 @@ type User struct {
 }
 
 func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("REQUEST [%v]", request)
+	cmd := request.QueryStringParameters["cmd"]
+	body := request.Body
+	ip := request.RequestContext.Identity.SourceIP
+	session := request.QueryStringParameters["session"]
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
-	switch request.QueryStringParameters["cmd"] {
+	switch cmd {
 
 	case "login":
 		var u User
