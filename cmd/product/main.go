@@ -34,34 +34,12 @@ type Product struct {
 	Length int     `json:"length"`
 }
 
-func NewProduct(s string) (Product, error) {
-	var p Product
-	if err := json.Unmarshal([]byte(s), &p); err != nil {
-		return p, err
-	} else if len(p.Name) < 3 {
-		return p, fmt.Errorf("bad name [%s], must be at least 3 characters in length", p.Name)
-	} else if p.Price < 0 {
-		return p, fmt.Errorf("bad price (integer) [%d]", p.Price)
-	} else if p.Id != "" {
-		return p, nil
-	} else if id, err := uuid.NewUUID(); err != nil {
-		return p, err
-	} else {
-		p.Id = id.String()
-		return p, nil
-	}
-}
-
 var t = os.Getenv("PRODUCT_TABLE")
 
-func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := r.QueryStringParameters["cmd"]
-	body := r.Body
-	ip := r.RequestContext.Identity.SourceIP
-	session := r.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
+func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	fmt.Printf("REQUEST [%v]", request)
 
-	switch cmd {
+	switch request.QueryStringParameters["cmd"] {
 
 	case "find-all":
 		var p []Product
@@ -74,7 +52,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	case "find-by-brand-id":
 		var p []Product
 		an := "brand_id"
-		av := r.QueryStringParameters["brand-id"]
+		av := request.QueryStringParameters["brand-id"]
 		if err := FindAllByAttribute(&t, &an, &av, &p); err != nil {
 			return InternalServerError().Error(err).Build()
 		} else {
@@ -83,7 +61,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "find-by-id":
 		var p Product
-		s := r.QueryStringParameters["id"]
+		s := request.QueryStringParameters["id"]
 		if err := FindOne(&t, &s, &p); err != nil {
 			return InternalServerError().Error(err).Build()
 		} else {
@@ -92,7 +70,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "find-by-ids":
 		var p []Product
-		ss := strings.Split(r.QueryStringParameters["ids"], ",")
+		ss := strings.Split(request.QueryStringParameters["ids"], ",")
 		if err := FindAllById(t, ss, &p); err != nil {
 			return InternalServerError().Error(err).Build()
 		} else {
@@ -100,18 +78,34 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	case "save":
-		if p, err := NewProduct(r.Body); err != nil {
+		var p Product
+		if err := json.Unmarshal([]byte(request.Body), &p); err != nil {
 			return BadGateway().Error(err).Build()
-		} else if _, err := ValidateSession(session, ip); err != nil {
+		} else if len(p.Name) < 3 {
+			return BadRequest().Error(fmt.Errorf("bad name [%s], must be at least 3 characters in length", p.Name)).Build()
+		} else if p.Price < 0 {
+			return BadRequest().Error(fmt.Errorf("bad price (integer) [%d]", p.Price)).Build()
+		}
+
+		ip := request.RequestContext.Identity.SourceIP
+		session := request.QueryStringParameters["session"]
+		if userId, err := ValidateSession(session, ip); err != nil {
 			return Unauthorized().Error(err).Build()
-		} else if err := Put(p, &t); err != nil {
-			return InternalServerError().Error(err).Build()
 		} else {
-			return Ok().Data(&p).Build()
+			p.Owner = userId
+			if p.Id == "" {
+				id, _ := uuid.NewUUID()
+				p.Id = id.String()
+			}
+			if err := Put(p, &t); err != nil {
+				return InternalServerError().Error(err).Build()
+			} else {
+				return Ok().Data(&p).Build()
+			}
 		}
 
 	default:
-		return BadRequest().Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Build()
 	}
 }
 
