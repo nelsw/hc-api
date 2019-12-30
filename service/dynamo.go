@@ -37,11 +37,6 @@ func init() {
 	}
 }
 
-// similar to an ORM, this method returns a single entity by providing a table name and pk
-func Get(tn, id *string) (*dynamodb.GetItemOutput, error) {
-	return db.GetItem(&dynamodb.GetItemInput{TableName: tn, Key: map[string]*dynamodb.AttributeValue{"id": {S: id}}})
-}
-
 // similar to merge or save, this method will only insert and update missing values
 func Put(v interface{}, s *string) error {
 	if item, err := dynamodbattribute.MarshalMap(&v); err != nil {
