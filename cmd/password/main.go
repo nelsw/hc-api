@@ -4,16 +4,13 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	response "github.com/nelsw/hc-util/aws"
 	"golang.org/x/crypto/bcrypt"
-	"hc-api/service"
-	"net/http"
+	. "hc-api/service"
 	"os"
 	"unicode"
 )
 
-var table = os.Getenv("USER_PASSWORD_TABLE")
+var t = os.Getenv("USER_PASSWORD_TABLE")
 
 // Data structure for persisting and retrieving a users (encrypted) password. The user entity maintains a 1-1 FK
 // relationship with the UserPassword entity for referential integrity, where user.PasswordId == userPassword.Id.
@@ -57,30 +54,25 @@ func (up *Password) Validate() error {
 	}
 }
 
-func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := r.QueryStringParameters["cmd"]
-	body := r.Body
-	ip := r.RequestContext.Identity.SourceIP
-	fmt.Printf("REQUEST [%s]: ip=[%s], body=[%s]", cmd, ip, body)
+func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	fmt.Printf("REQUEST [%v]", request)
 
-	switch cmd {
+	switch request.QueryStringParameters["cmd"] {
 
 	case "verify":
-		p := r.QueryStringParameters["p"]
-		id := r.QueryStringParameters["id"]
+		client := request.QueryStringParameters["p"]
+		id := request.QueryStringParameters["id"]
 		var server Password
-		if result, err := service.Get(&table, &id); err != nil {
-			return response.New().Code(http.StatusNotFound).Text(err.Error()).Build()
-		} else if err = dynamodbattribute.UnmarshalMap(result.Item, &server); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Build()
-		} else if err := bcrypt.CompareHashAndPassword([]byte(server.Password), []byte(p)); err != nil {
-			return response.New().Code(http.StatusUnauthorized).Build()
+		if err := FindOne(&t, &id, &server); err != nil {
+			return NotFound().Error(err).Build()
+		} else if err := bcrypt.CompareHashAndPassword([]byte(server.Password), []byte(client)); err != nil {
+			return Unauthorized().Error(err).Build()
 		} else {
-			return response.New().Code(http.StatusOK).Build()
+			return Ok().Build()
 		}
 
 	default:
-		return response.New().Code(http.StatusBadRequest).Text(fmt.Sprintf("bad command: [%s]", cmd)).Build()
+		return BadRequest().Build()
 	}
 }
 
