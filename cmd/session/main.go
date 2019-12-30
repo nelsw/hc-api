@@ -25,30 +25,33 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := r.QueryStringParameters["cmd"]
-	body := r.Body
-	ip := r.RequestContext.Identity.SourceIP
-	session := r.QueryStringParameters["session"]
+func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	cmd := request.QueryStringParameters["cmd"]
+	body := request.Body
+	ip := request.RequestContext.Identity.SourceIP
+	session := request.QueryStringParameters["session"]
 	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
-	switch cmd {
+	switch request.QueryStringParameters["cmd"] {
 
 	case "validate":
 		claims := &Claims{}
-		session := r.QueryStringParameters["session"]
 		token := regex.ReplaceAllString(session, `$2`)
 		if tkn, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil {
 			// Either the token expired or the signature doesn't match.
 			return Unauthorized().Error(err).Build()
-		} else if !tkn.Valid || (claims.Ip != ip && ip != "") {
-			return Unauthorized().Text("bad token").Build()
+		} else if !tkn.Valid {
+			return Unauthorized().Text(fmt.Sprintf("bad token got=[%s] want=[%v]", token, tkn)).Build()
+		} else if ip == "" {
+			return Unauthorized().Text(fmt.Sprintf("bad ip [%s]", ip)).Build()
+		} else if claims.Ip != ip {
+			return Unauthorized().Text(fmt.Sprintf("bad ips got=[%s] want=[%s] claims=[%v]", ip, claims.Ip, claims)).Build()
 		} else {
 			return Ok().Str(claims.Id).Build()
 		}
 
 	case "create":
-		id := r.QueryStringParameters["id"]
+		id := request.QueryStringParameters["id"]
 		expiry := time.Now().Add(30 * time.Minute)
 		// Declare the token with the algorithm used for signing, and JWT claims.
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
@@ -74,7 +77,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	default:
-		return BadRequest().Data(r).Build()
+		return BadGateway().Build()
 	}
 }
 
