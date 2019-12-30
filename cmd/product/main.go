@@ -16,7 +16,7 @@ type Product struct {
 	Id        string `json:"id"`
 	Sku       string `json:"sku"`
 	AddressId string `json:"address_id"`
-	BrandId   string `json:"brand_id"`
+	BrandId   string `json:"brand_id,omitempty"`
 	Owner     string `json:"owner"` // user_id
 	// basic details.
 	Category    string   `json:"category"`
@@ -26,18 +26,24 @@ type Product struct {
 	ImageSet    []string `json:"image_set"`
 	Quantity    string   `json:"quantity"`
 	Stock       string   `json:"stock"`
+	Deleted     string   `json:"deleted,omitempty"`
 	// packaging details (calc shipping rates)
-	Unit   string  `json:"unit"` // LB
-	Weight float32 `json:"weight"`
-	Width  int     `json:"width"`
-	Height int     `json:"height"`
-	Length int     `json:"length"`
+	Unit    string  `json:"unit"` // LB
+	Weight  float32 `json:"weight"`
+	Width   int     `json:"width"`
+	Height  int     `json:"height"`
+	Length  int     `json:"length"`
+	Session string  `json:"session"`
 }
 
 var t = os.Getenv("PRODUCT_TABLE")
 
 func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("REQUEST [%v]", request)
+	cmd := request.QueryStringParameters["cmd"]
+	body := request.Body
+	ip := request.RequestContext.Identity.SourceIP
+	session := request.QueryStringParameters["session"]
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
 	switch request.QueryStringParameters["cmd"] {
 
@@ -87,12 +93,11 @@ func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProx
 			return BadRequest().Error(fmt.Errorf("bad price (integer) [%d]", p.Price)).Build()
 		}
 
-		ip := request.RequestContext.Identity.SourceIP
-		session := request.QueryStringParameters["session"]
-		if userId, err := ValidateSession(session, ip); err != nil {
+		if userId, err := ValidateSession(p.Session, request.RequestContext.Identity.SourceIP); err != nil {
 			return Unauthorized().Error(err).Build()
 		} else {
 			p.Owner = userId
+			p.Stock = p.Quantity
 			if p.Id == "" {
 				id, _ := uuid.NewUUID()
 				p.Id = id.String()
