@@ -27,8 +27,6 @@ type UserProfile struct {
 	// unused
 	Password1 string `json:"password_1,omitempty"`
 	Password2 string `json:"password_2,omitempty"`
-	// deprecated - todo, refactor to qsp.
-	Session string `json:"session"`
 }
 
 func (up *UserProfile) Unmarshal(s string) error {
@@ -44,20 +42,18 @@ func (up *UserProfile) Unmarshal(s string) error {
 	}
 }
 
-func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := r.QueryStringParameters["cmd"]
-	body := r.Body
-	ip := r.RequestContext.Identity.SourceIP
-	session := r.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]", cmd, ip, session, body)
+func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	fmt.Printf("REQUEST [%v]", request)
 
-	switch cmd {
+	switch request.QueryStringParameters["cmd"] {
 
 	case "save":
+		session := request.QueryStringParameters["session"]
 		var p UserProfile
-		if err := p.Unmarshal(r.Body); err != nil {
+
+		if err := p.Unmarshal(request.Body); err != nil {
 			return BadRequest().Error(err).Build()
-		} else if _, err := ValidateSession(p.Session, ip); err != nil {
+		} else if _, err := ValidateSession(session, request.RequestContext.Identity.SourceIP); err != nil {
 			return Unauthorized().Error(err).Build()
 		} else if err := Put(p, &table); err != nil {
 			return InternalServerError().Error(err).Build()
@@ -67,7 +63,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "find":
 		var p UserProfile
-		id := r.QueryStringParameters["id"]
+		id := request.QueryStringParameters["id"]
 		if err := FindOne(&table, &id, &p); err != nil {
 			return NotFound().Error(err).Build()
 		} else {
@@ -75,7 +71,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	default:
-		return BadRequest().Data(r).Build()
+		return BadRequest().Build()
 	}
 }
 
