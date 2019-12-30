@@ -24,6 +24,8 @@ type SliceUpdate struct {
 	Session    string   `json:"session"` // valid session required
 }
 
+const deleted = "deleted"
+
 var db *dynamodb.DynamoDB
 
 // todo - cross region initialization via env var
@@ -58,7 +60,16 @@ func FindOne(tn, id *string, v interface{}) error {
 }
 
 func FindAll(s *string, v interface{}) error {
-	if out, err := db.Scan(&dynamodb.ScanInput{TableName: s}); err != nil {
+	f := expression.AttributeNotExists(expression.Name(deleted))
+	if exp, err := expression.NewBuilder().WithFilter(f).Build(); err != nil {
+		return err
+	} else if out, err := db.Scan(&dynamodb.ScanInput{
+		ExpressionAttributeNames:  exp.Names(),
+		ExpressionAttributeValues: exp.Values(),
+		FilterExpression:          exp.Filter(),
+		ProjectionExpression:      exp.Projection(),
+		TableName:                 s,
+	}); err != nil {
 		return err
 	} else if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &v); err != nil {
 		return err
