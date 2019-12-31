@@ -81,7 +81,7 @@ func (b *builder) Build() (events.APIGatewayProxyResponse, error) {
 		b.body = `{}`
 	}
 	r := events.APIGatewayProxyResponse{StatusCode: b.status, Headers: b.headers, Body: b.body}
-	fmt.Printf("RESPONSE code=[%d] body=[%s]\n", b.status, b.body)
+	fmt.Printf("RESPONSE\n\t   code=[%d]\n\t   body=[%s]\n", b.status, b.body)
 	return r, nil
 }
 
