@@ -43,17 +43,20 @@ func (up *UserProfile) Unmarshal(s string) error {
 }
 
 func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("REQUEST [%v]", request)
+	cmd := request.QueryStringParameters["cmd"]
+	body := request.Body
+	ip := request.RequestContext.Identity.SourceIP
+	session := request.QueryStringParameters["session"]
+	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
 
-	switch request.QueryStringParameters["cmd"] {
+	switch cmd {
 
 	case "save":
-		session := request.QueryStringParameters["session"]
 		var p UserProfile
 
 		if err := p.Unmarshal(request.Body); err != nil {
 			return BadRequest().Error(err).Build()
-		} else if _, err := ValidateSession(session, request.RequestContext.Identity.SourceIP); err != nil {
+		} else if _, err := ValidateSession(session, ip); err != nil {
 			return Unauthorized().Error(err).Build()
 		} else if err := Put(p, &table); err != nil {
 			return InternalServerError().Error(err).Build()
