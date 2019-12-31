@@ -5,67 +5,75 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/google/uuid"
 	. "hc-api/service"
 	"os"
 	"time"
 )
 
 type Offer struct {
-	Id           string `json:"id"`
-	UserId       string `json:"user_id"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Phone        string `json:"phone"`
-	Email        string `json:"email"`
-	ProductId    string `json:"product_id"`
-	ProductName  string `json:"product_name"`
-	ProductPrice int64  `json:"product_price"`
-	ProductQty   int    `json:"product_qty"`
-	ProductImg   string `json:"product_img,omitempty"`
-	Total        int64  `json:"total"`
-	Created      string `json:"created"`
+	Id               string `json:"id"`
+	UserId           string `json:"user_id"`
+	ProfileId        string `json:"profile_id"`
+	FirstName        string `json:"first_name"`
+	LastName         string `json:"last_name"`
+	Phone            string `json:"phone"`
+	Email            string `json:"email"`
+	ProductId        string `json:"product_id"`
+	ProductImg       string `json:"product_img"`
+	ProductName      string `json:"product_name"`
+	ProductUnit      string `json:"product_unit"`
+	ProductPrice     int64  `json:"product_price"`
+	ProductAddressId string `json:"product_address_id"`
+	Details          string `json:"details"`
+	Created          string `json:"created"`
 }
 
-var tableName = os.Getenv("OFFER_TABLE")
+type OfferRequest struct {
+	Command string `json:"command"`
+	Session string `json:"session"`
+	Offer   Offer  `json:"offer"`
+}
 
-func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := request.QueryStringParameters["cmd"]
-	body := request.Body
-	ip := request.RequestContext.Identity.SourceIP
-	session := request.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
+const f = "REQUEST offer\n\t     IP=[%s]\n\tcommand=[%s]\n\tsession=[%s]\n\t   body=[%v]\n"
 
-	switch request.QueryStringParameters["cmd"] {
+var t = os.Getenv("OFFER_TABLE")
+
+func HandleRequest(proxyRequest events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
+	var r OfferRequest
+	if err := json.Unmarshal([]byte(proxyRequest.Body), &r); err != nil {
+		panic(err)
+	}
+
+	ip := proxyRequest.RequestContext.Identity.SourceIP
+	fmt.Printf(f, ip, r.Command, r.Session, r.Offer)
+
+	switch r.Command {
 
 	case "save":
 
-		var offer Offer
-		if err := json.Unmarshal([]byte(request.Body), &offer); err != nil {
-			return BadGateway().Error(err).Build()
+		userId, err := Invoke().Handler("Session").Session(r.Session).IP(ip).CMD("validate").Post()
+		if err != nil {
+			return Unauthorized().Error(err).Build()
 		}
 
-		ip := request.RequestContext.Identity.SourceIP
-		session := request.QueryStringParameters["session"]
-
-		um, err := Invoke().Handler("User").IP(ip).CMD("find").Session(session).Build()
+		err = Invoke().Handler("User").IP(ip).CMD("find").Session(r.Session).Marshal(&r.Offer)
 		if err != nil {
 			return BadRequest().Error(err).Build()
 		}
 
-		id := fmt.Sprintf("%v", um["profile_id"])
-		pm, err := Invoke().Handler("UserProfile").IP(ip).Session(session).CMD("find").QSP("id", id).Build()
+		err = Invoke().Handler("Profile").IP(ip).Session(r.Session).CMD("find").ID(r.Offer.ProfileId).Marshal(&r.Offer)
 		if err != nil {
 			return BadRequest().Error(err).Build()
 		}
 
-		offer.Email = fmt.Sprintf("%v", pm["email"])
-		offer.Phone = fmt.Sprintf("%v", pm["phone"])
-		offer.FirstName = fmt.Sprintf("%v", pm["first_name"])
-		offer.LastName = fmt.Sprintf("%v", pm["last_name"])
-		offer.Created = time.Now().UTC().Format(time.RFC3339)
-		offer.Total = int64(offer.ProductQty) * offer.ProductPrice
+		id, _ := uuid.NewUUID()
+		r.Offer.Id = id.String()
+		r.Offer.UserId = userId
+		r.Offer.Created = time.Now().UTC().Format(time.RFC3339)
 
-		if err := Put(offer, &tableName); err != nil {
+		if err := Put(r.Offer, &t); err != nil {
 			return InternalServerError().Error(err).Build()
 		} else {
 			return Ok().Build()
