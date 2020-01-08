@@ -19,7 +19,7 @@ TST_DIR=./...
 
 # SAM local invoke properties.
 TMP_YML=template.yml
-TMP_JSON=testdata/tmp.json
+TMP_JSON=tmp.json
 REQUEST_JSON=testdata/request.json
 TEMPLATE_YML=testdata/template.yml
 QSP=$(shell jq '.' testdata/${DOMAIN}/${CMD}/qsp.json -c)
@@ -46,11 +46,11 @@ it: init-request init-template invoke clean
 
 # Removes build and package artifacts.
 clean:
-	rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${COVERAGE_REPORT}; rm -f ${TMP_YML}; rm -f ${TMP_JSON};
+	rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${TST_OUT}; rm -f ${TMP_YML}; rm -f ${TMP_JSON};
 
 # Tests the entire project and outputs a coverage profile.
 test:
-	go test -coverprofile ${COVERAGE_REPORT} ${TST_DIR}
+	go test -coverprofile ${TST_OUT} ${TST_DIR}
 
 # Update the request event with test specific query string parameters and body data.
 init-request:
