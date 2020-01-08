@@ -23,7 +23,6 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return Ok().Data(&a).Build()
 		}
 	case "rate":
-		fmt.Printf(r.Body)
 		v := r.QueryStringParameters["v"]
 		if v == "USPS" {
 			if p, err := usps.GetPostage(body); err != nil {
