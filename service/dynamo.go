@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"github.com/google/uuid"
 	"log"
 )
 
@@ -44,7 +45,11 @@ func Put(v interface{}, s *string) error {
 	if item, err := dynamodbattribute.MarshalMap(&v); err != nil {
 		return err
 	} else {
-		delete(item, "session")
+		delete(item, "session") // deprecated
+		if av, ok := item["id"]; !ok || av.S == nil {
+			id, _ := uuid.NewUUID()
+			item["id"] = &dynamodb.AttributeValue{S: aws.String(id.String())}
+		}
 		_, err := db.PutItem(&dynamodb.PutItemInput{Item: item, TableName: s})
 		return err
 	}
