@@ -10,74 +10,65 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/google/uuid"
+	"hc-api/pkg/apigw"
 	. "hc-api/service"
 	"os"
 )
 
 var table = os.Getenv("USER_PROFILE_TABLE")
 
-type UserProfile struct {
+type Profile struct {
 	Id        string   `json:"id"`
 	BrandIds  []string `json:"brand_ids"`
 	Email     string   `json:"email"`
 	FirstName string   `json:"first_name"`
 	LastName  string   `json:"last_name"`
 	Phone     string   `json:"phone"`
-	// unused
-	Password1 string `json:"password_1,omitempty"`
-	Password2 string `json:"password_2,omitempty"`
 }
 
-func (up *UserProfile) Unmarshal(s string) error {
-	if err := json.Unmarshal([]byte(s), &up); err != nil {
-		return err
-	} else if up.Id != "" {
-		return nil
-	} else if id, err := uuid.NewUUID(); err != nil {
-		return err
-	} else {
-		up.Id = id.String()
-		return nil
-	}
+type ProfileRequest struct {
+	Command string  `json:"command"`
+	Session string  `json:"session"`
+	Profile Profile `json:"profile"`
+	Id      string  `json:"id"`
 }
 
-func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := request.QueryStringParameters["cmd"]
+func Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
+	var r ProfileRequest
 	body := request.Body
-	ip := request.RequestContext.Identity.SourceIP
-	session := request.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return apigw.BadRequest(err)
+	}
 
-	switch cmd {
+	fmt.Printf("REQUEST   [%s]\n", body)
+
+	ip := request.RequestContext.Identity.SourceIP
+	if _, err := Invoke().Handler("Session").Session(r.Session).IP(ip).CMD("validate").Post(); err != nil {
+		return apigw.BadAuth(err)
+	}
+
+	switch r.Command {
 
 	case "save":
-		var p UserProfile
-
-		if err := p.Unmarshal(request.Body); err != nil {
-			return BadRequest().Error(err).Build()
-		} else if _, err := ValidateSession(session, ip); err != nil {
-			return Unauthorized().Error(err).Build()
-		} else if err := Put(p, &table); err != nil {
-			return InternalServerError().Error(err).Build()
+		if err := Put(&r.Profile, &table); err != nil {
+			return apigw.BadRequest(err)
 		} else {
-			return Ok().Data(&p).Build()
+			return apigw.Ok()
 		}
 
 	case "find":
-		var p UserProfile
-		id := request.QueryStringParameters["id"]
-		if err := FindOne(&table, &id, &p); err != nil {
-			return NotFound().Error(err).Build()
+		if err := FindOne(&table, &r.Id, &r.Profile); err != nil {
+			return apigw.BadRequest(err)
 		} else {
-			return Ok().Data(&p).Build()
+			return apigw.Ok(&r.Profile)
 		}
 
 	default:
-		return BadRequest().Build()
+		return apigw.BadRequest()
 	}
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }

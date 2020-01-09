@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/google/uuid"
+	"hc-api/pkg/apigw"
 	. "hc-api/service"
 	"os"
 	"time"
@@ -35,38 +36,34 @@ type OfferRequest struct {
 	Offer   Offer  `json:"offer"`
 }
 
-const f = "REQUEST offer\n\t     IP=[%s]\n\tcommand=[%s]\n\tsession=[%s]\n\t   body=[%v]\n"
-
 var t = os.Getenv("OFFER_TABLE")
 
-func HandleRequest(proxyRequest events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	var r OfferRequest
-	if err := json.Unmarshal([]byte(proxyRequest.Body), &r); err != nil {
-		panic(err)
+	body := request.Body
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return apigw.BadRequest(err)
 	}
 
-	ip := proxyRequest.RequestContext.Identity.SourceIP
-	fmt.Printf(f, ip, r.Command, r.Session, r.Offer)
+	fmt.Printf("REQUEST   [%s]\n", body)
 
-	switch r.Command {
+	if r.Command != "save" {
+		return apigw.BadRequest("bad command")
+	}
 
-	case "save":
+	tkn := r.Session
+	ip := request.RequestContext.Identity.SourceIP
 
-		userId, err := Invoke().Handler("Session").Session(r.Session).IP(ip).CMD("validate").Post()
-		if err != nil {
-			return Unauthorized().Error(err).Build()
-		}
-
-		err = Invoke().Handler("User").IP(ip).CMD("find").Session(r.Session).Marshal(&r.Offer)
-		if err != nil {
-			return BadRequest().Error(err).Build()
-		}
-
-		err = Invoke().Handler("Profile").IP(ip).Session(r.Session).CMD("find").ID(r.Offer.ProfileId).Marshal(&r.Offer)
-		if err != nil {
-			return BadRequest().Error(err).Build()
-		}
+	if userId, err := Invoke().Handler("Session").IP(ip).Session(tkn).CMD("validate").Post(); err != nil {
+		return apigw.BadAuth(err)
+	} else if err := Invoke().Handler("User").IP(ip).Session(tkn).CMD("find").Marshal(&r.Offer); err != nil {
+		return apigw.BadRequest(err)
+	} else if pid := r.Offer.ProfileId; pid == "" {
+		return apigw.BadRequest("bad user id")
+	} else if err := Invoke().Handler("Profile").IP(ip).Session(tkn).CMD("find").ID(pid).Marshal(&r.Offer); err != nil {
+		return apigw.BadRequest(err)
+	} else {
 
 		id, _ := uuid.NewUUID()
 		r.Offer.Id = id.String()
@@ -74,16 +71,13 @@ func HandleRequest(proxyRequest events.APIGatewayProxyRequest) (events.APIGatewa
 		r.Offer.Created = time.Now().UTC().Format(time.RFC3339)
 
 		if err := Put(r.Offer, &t); err != nil {
-			return InternalServerError().Error(err).Build()
+			return apigw.BadRequest(err)
 		} else {
-			return Ok().Build()
+			return apigw.Ok()
 		}
-
-	default:
-		return BadRequest().Build()
 	}
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }
