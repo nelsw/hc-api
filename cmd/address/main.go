@@ -31,12 +31,13 @@ type AddressRequest struct {
 
 func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	fmt.Printf("REQUEST   [%s]\n", request.Body)
-
+	// reverse compatibility
 	body := request.Body
 	cmd := request.QueryStringParameters["cmd"]
 	session := request.QueryStringParameters["session"]
 	ids := strings.Split(request.QueryStringParameters["ids"], ",")
+
+	fmt.Printf("REQUEST   [%s]\n", body)
 
 	var v AddressRequest
 	if err := json.Unmarshal([]byte(body), &v); err == nil {
@@ -51,7 +52,8 @@ func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProx
 
 	case "save":
 		var a Address
-		if _, err := ValidateSession(session, request.RequestContext.Identity.SourceIP); err != nil {
+		ip := request.RequestContext.Identity.SourceIP
+		if _, err := Invoke().Handler("Session").Session(session).IP(ip).CMD("validate").Post(); err != nil {
 			return Unauthorized().Error(err).Build()
 		} else {
 			str, _ := VerifyAddress(body)
