@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"golang.org/x/crypto/bcrypt"
+	"hc-api/pkg/apigw"
 	. "hc-api/service"
 	"os"
 	"unicode"
@@ -17,6 +19,11 @@ var t = os.Getenv("USER_PASSWORD_TABLE")
 type Password struct {
 	Id       string `json:"id"`
 	Password string `json:"password"`
+}
+
+type PasswordRequest struct {
+	Session  string   `json:"session"`
+	Password Password `json:"password"`
 }
 
 // Validates the UserPassword entity by confirming that both the password and id values are valid.
@@ -37,8 +44,6 @@ func (up *Password) Validate() error {
 			length++
 		case unicode.IsLetter(c) || c == ' ':
 			length++
-		default:
-			// do not increment length for unrecognized characters
 		}
 	}
 	if length < 8 || length > 24 {
@@ -54,28 +59,33 @@ func (up *Password) Validate() error {
 	}
 }
 
-func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("REQUEST [%v]", request)
+func Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	switch request.QueryStringParameters["cmd"] {
+	body := request.Body
+	fmt.Printf("REQUEST   [%s]\n", body)
 
-	case "verify":
-		client := request.QueryStringParameters["p"]
-		id := request.QueryStringParameters["id"]
-		var server Password
-		if err := FindOne(&t, &id, &server); err != nil {
-			return NotFound().Error(err).Build()
-		} else if err := bcrypt.CompareHashAndPassword([]byte(server.Password), []byte(client)); err != nil {
-			return Unauthorized().Error(err).Build()
-		} else {
-			return Ok().Build()
-		}
+	var r PasswordRequest
+	if err := json.Unmarshal([]byte(body), &r); err != nil {
+		return apigw.BadRequest(err)
+	} else if err := r.Password.Validate(); err != nil {
+		return apigw.BadRequest(err)
+	}
 
-	default:
-		return BadRequest().Build()
+	ip := request.RequestContext.Identity.SourceIP
+	if _, err := Invoke().Handler("Session").Session(r.Session).IP(ip).CMD("validate").Post(); err != nil {
+		return apigw.BadAuth(err)
+	}
+
+	var p Password
+	if err := FindOne(&t, &r.Password.Id, &p); err != nil {
+		return apigw.BadRequest(err)
+	} else if err := bcrypt.CompareHashAndPassword([]byte(p.Password), []byte(r.Password.Password)); err != nil {
+		return apigw.BadAuth(err)
+	} else {
+		return apigw.Ok()
 	}
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }
