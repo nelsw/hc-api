@@ -1,4 +1,4 @@
-package internal
+package token
 
 import (
 	"github.com/dgrijalva/jwt-go"
@@ -7,16 +7,18 @@ import (
 	"time"
 )
 
+type Claims struct {
+	Id string `json:"id"`
+	Ip string `json:"ip"`
+	jwt.StandardClaims
+}
+
 var jwtKey = []byte(os.Getenv("JWT_KEY"))
 
 func NewToken(id, ip string) string {
-	type Claims struct {
-		Id string `json:"id"`
-		Ip string `json:"ip"`
-		jwt.StandardClaims
-	}
 	expiry := time.Now().Add(30 * time.Minute)
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{Id: id, Ip: ip, StandardClaims: jwt.StandardClaims{ExpiresAt: expiry.Unix()}})
+	claims := &Claims{Id: id, Ip: ip, StandardClaims: jwt.StandardClaims{ExpiresAt: expiry.Unix()}}
+	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	str, _ := tkn.SignedString(jwtKey)
 	cookie := &http.Cookie{Name: "token", Value: str, Expires: expiry, HttpOnly: false}
 	return cookie.String()

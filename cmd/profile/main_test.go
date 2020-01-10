@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
-	"hc-api/internal"
+	"hc-api/pkg/token"
 	"testing"
 )
 
@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	session    = internal.NewToken(userId, sourceIp)
+	session    = token.NewToken(userId, sourceIp)
 	requestCtx = events.APIGatewayProxyRequestContext{Identity: events.APIGatewayRequestIdentity{SourceIP: sourceIp}}
 	profile    = Profile{
 		Email:     "connor@wiesow.com",

@@ -3,14 +3,14 @@ package main
 import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
-	"hc-api/internal"
+	"hc-api/pkg/token"
 	"testing"
 )
 
 const sourceIp = "127.0.0.1"
 const userId = "638b13ef-ab84-410a-abb0-c9fd5da45c62"
 
-var session = internal.NewToken(userId, sourceIp)
+var session = token.NewToken(userId, sourceIp)
 var requestCtx = events.APIGatewayProxyRequestContext{Identity: events.APIGatewayRequestIdentity{SourceIP: sourceIp}}
 var offer = Offer{
 	ProductId:        "53f2ebcb-1689-11ea-9a91-6a36cd23892f",
@@ -41,7 +41,7 @@ func TestHandleBadCommand(t *testing.T) {
 
 // Given a valid request, when saving offer, return
 func TestHandleBadAuth(t *testing.T) {
-	tkn := internal.NewToken(userId, "")
+	tkn := token.NewToken(userId, "")
 	b, _ := json.Marshal(OfferRequest{Command: "save", Session: tkn, Offer: offer})
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
 	if out.StatusCode != 401 {
@@ -51,7 +51,7 @@ func TestHandleBadAuth(t *testing.T) {
 
 // Given a valid request, when saving offer, return
 func TestHandleBadUser(t *testing.T) {
-	tkn := internal.NewToken("", sourceIp)
+	tkn := token.NewToken("", sourceIp)
 	b, _ := json.Marshal(OfferRequest{Command: "save", Session: tkn, Offer: offer})
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
 	if out.StatusCode != 400 {
