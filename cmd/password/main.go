@@ -46,11 +46,11 @@ func (p *Password) Validate() error {
 	}
 	if length < 8 || length > 24 {
 		return lengthError
-	} else if number == false {
+	} else if !number {
 		return numberError
-	} else if upper == false {
+	} else if !upper {
 		return upperError
-	} else if special == false {
+	} else if !special {
 		return specialError
 	} else {
 		return nil
