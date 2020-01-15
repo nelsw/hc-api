@@ -96,13 +96,13 @@ func NewPackageRateRequest(s string) (PackageRateRequest, error) {
 
 type RateResponse struct {
 	XMLName      xml.Name     `xml:"http://schemas.xmlsoap.org/soap/envelope/ Envelope"`
-	ResponseBody ResponseBody `xml:"Body"`
+	ResponseBody ResponseBody `xml:"Entity"`
 
 	Rates map[string]map[string]map[string]string `json:"rates"`
 }
 
 type ResponseBody struct {
-	XMLName   xml.Name  `xml:"http://schemas.xmlsoap.org/soap/envelope/ Body"`
+	XMLName   xml.Name  `xml:"http://schemas.xmlsoap.org/soap/envelope/ Entity"`
 	RateReply RateReply `xml:"RateReply"`
 }
 
@@ -147,7 +147,7 @@ type GrandTotal struct {
 
 const rateXml = `
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://fedex.com/ws/rate/v26">
-   <SOAP-ENV:Body>
+   <SOAP-ENV:Entity>
       <RateRequest>
          <WebAuthenticationDetail>
 			<ParentCredential>
@@ -220,7 +220,7 @@ const rateXml = `
             </RequestedPackageLineItems>
          </RequestedShipment>
       </RateRequest>
-   </SOAP-ENV:Body>
+   </SOAP-ENV:Entity>
 </SOAP-ENV:Envelope>`
 
 var callUrl = `https://ws.fedex.com:443/web-services` //os.Getenv("FEDEX_CALL_URL")

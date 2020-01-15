@@ -103,7 +103,7 @@ func TestHandleRequestFindByIds400(t *testing.T) {
 	}
 }
 
-// tests default switch case, a bad request
+// tests default switch case, a bad wrapper
 func TestHandleRequestBadCommand400(t *testing.T) {
 	addressRequest.Command = ""
 	if r, err := HandleRequest(events.APIGatewayProxyRequest{}); err != nil {

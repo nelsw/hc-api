@@ -22,7 +22,7 @@ var offer = Offer{
 	Details:          "100K lbs, $75/lb, first & final.",
 }
 
-// Given a valid request, when saving offer, return
+// Given a valid wrapper, when saving offer, return
 func TestHandleSave(t *testing.T) {
 	b, _ := json.Marshal(OfferRequest{Command: "save", Session: session, Offer: offer})
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
@@ -39,7 +39,7 @@ func TestHandleBadCommand(t *testing.T) {
 	}
 }
 
-// Given a valid request, when saving offer, return
+// Given a valid wrapper, when saving offer, return
 func TestHandleBadAuth(t *testing.T) {
 	tkn := token.NewToken(userId, "")
 	b, _ := json.Marshal(OfferRequest{Command: "save", Session: tkn, Offer: offer})
@@ -49,7 +49,7 @@ func TestHandleBadAuth(t *testing.T) {
 	}
 }
 
-// Given a valid request, when saving offer, return
+// Given a valid wrapper, when saving offer, return
 func TestHandleBadUser(t *testing.T) {
 	tkn := token.NewToken("", sourceIp)
 	b, _ := json.Marshal(OfferRequest{Command: "save", Session: tkn, Offer: offer})
@@ -59,7 +59,7 @@ func TestHandleBadUser(t *testing.T) {
 	}
 }
 
-// Given a valid request, when saving offer, return
+// Given a valid wrapper, when saving offer, return
 func TestHandleBadProfile(t *testing.T) {
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx})
 	if out.StatusCode != 400 {
@@ -67,7 +67,7 @@ func TestHandleBadProfile(t *testing.T) {
 	}
 }
 
-// Given a valid request, when saving offer, return
+// Given a valid wrapper, when saving offer, return
 func TestHandleBadRequest(t *testing.T) {
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx})
 	if out.StatusCode != 400 {

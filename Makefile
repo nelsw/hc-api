@@ -5,7 +5,7 @@
 
 # The API domain function to make, see the README and ~go/src/hc-api/cmd/* for more information.
 DOMAIN=
-# The command, AKA switch statement case value, of an API request.
+# The command, AKA switch statement case value, of an API wrapper.
 CMD=
 
 # Build properties, effecitvely final.
@@ -41,7 +41,7 @@ VARIABLES=$(shell jq '.Variables' testdata/${DOMAIN}/env.json -c)
 # also improve performance by telling the SHELL that we do not expect the command to create a file.
 .PHONY: clean test build package invoke update create
 
-# Convenience method for initializing request.json and templte.yml files prior to executing the invoke command.
+# Convenience method for initializing wrapper.json and templte.yml files prior to executing the invoke command.
 it: init-request init-template invoke clean
 
 # Removes build and package artifacts.
@@ -52,7 +52,7 @@ clean:
 test:
 	go test -coverprofile ${TST_OUT} ${TST_DIR}
 
-# Update the request event with test specific query string parameters and body data.
+# Update the wrapper event with test specific query string parameters and body data.
 init-request:
 	jq '.queryStringParameters=${QSP}' ${REQUEST_JSON} | sponge ${REQUEST_JSON};
 	jq '.body=${BODY}' ${REQUEST_JSON} | sponge ${REQUEST_JSON};

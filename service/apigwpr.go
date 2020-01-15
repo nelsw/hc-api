@@ -85,8 +85,6 @@ func (b *builder) Build() (events.APIGatewayProxyResponse, error) {
 	return r, nil
 }
 
-func New() Response { return &builder{headers: headers} }
-
 func Ok() Response { return &builder{status: http.StatusOK, headers: headers} }
 
 func Unauthorized() Response {

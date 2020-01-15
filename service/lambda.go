@@ -131,11 +131,6 @@ func VerifyCredentials(body string) (string, error) {
 	return invocation("hcUsernameHandler", body, "", map[string]string{"cmd": "verify"})
 }
 
-func VerifyPassword(p, id string) error {
-	_, err := invocation("hcPasswordHandler", "", "", map[string]string{"cmd": "verify", "p": p, "id": id})
-	return err
-}
-
 func VerifyAddress(body string) (string, error) {
 	return invocation("hcShippingHandler", body, "", map[string]string{"cmd": "verify"})
 }
