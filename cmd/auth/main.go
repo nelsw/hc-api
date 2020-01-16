@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/internal/entity/token"
+	"hc-api/pkg/entity"
 )
 
-func Handle(t token.Aggregate) error {
+func Handle(t entity.Token) error {
 	return t.Validate()
 }
 

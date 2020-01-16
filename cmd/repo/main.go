@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/internal/class"
-	"hc-api/internal/repository"
+	"hc-api/pkg/repository"
+	"hc-api/pkg/value"
 )
 
-func HandleRequest(r class.Request) ([]byte, error) {
+func Handle(r value.Request) ([]byte, error) {
 
-	switch r.Command {
+	switch r.Case {
 
 	case "find-all":
 		return repository.FindAll(r)
@@ -30,9 +30,9 @@ func HandleRequest(r class.Request) ([]byte, error) {
 		return repository.Update(r)
 	}
 
-	return nil, fmt.Errorf("bad command=[%s]", r.Command)
+	return nil, fmt.Errorf("bad command=[%s]", r.Case)
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }

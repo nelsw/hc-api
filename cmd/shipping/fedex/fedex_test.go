@@ -24,7 +24,7 @@ func TestGenerateSOAPRequest(t *testing.T) {
 		Height:             5,
 	}
 
-	var rr PackageRateRequest
+	var rr RateRequest
 	rr.Packages = append(rr.Packages, r)
 	b, err := json.Marshal(&rr)
 	if err != nil {

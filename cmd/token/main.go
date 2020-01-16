@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/internal/entity/token"
+	"hc-api/pkg/entity"
 )
 
-func Handle(t token.Aggregate) (string, error) {
-	if err := t.Validate(); err != nil {
-		return "", err
+func Handle(e entity.Token) ([]byte, error) {
+	if err := e.Validate(); err != nil {
+		return nil, err
 	} else {
-		return t.String(), nil
+		return e.Payload(), nil
 	}
 }
 

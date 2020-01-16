@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/internal/entity/password"
-	. "hc-api/service"
+	"hc-api/pkg/entity"
+	"hc-api/pkg/service"
 )
 
-func Handle(p password.Password) error {
-	if err := FindOne(p.Table(), p.Id(), &p); err != nil {
+func Handle(p entity.Password) error {
+	if err := service.Find(&p); err != nil {
 		return err
 	} else {
 		return p.Validate()

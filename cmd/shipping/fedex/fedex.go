@@ -30,12 +30,7 @@ var ucp = os.Getenv("FEDEX_USER_CREDENTIAL_PASSWORD")
 var can = os.Getenv("FEDEX_CLIENT_ACCOUNT_NUMBER")
 var mtr = os.Getenv("FEDEX_METER_NUMBER")
 
-type PackageRateRequest struct {
-	Packages []PackageRequest                        `json:"packages"`
-	Rates    map[string]map[string]map[string]string `json:"rates"`
-}
-
-type PackageRateResponse struct {
+type RateRequest struct {
 	Packages []PackageRequest                        `json:"packages"`
 	Rates    map[string]map[string]map[string]string `json:"rates"`
 }
@@ -62,8 +57,8 @@ type PackageRequest struct {
 	ShipTimestamp            string  `json:"ship_timestamp"`
 }
 
-func NewPackageRateRequest(s string) (PackageRateRequest, error) {
-	var out PackageRateRequest
+func NewPackageRateRequest(s string) (RateRequest, error) {
+	var out RateRequest
 	if err := json.Unmarshal([]byte(s), &out); err != nil {
 		return out, err
 	} else {
@@ -97,8 +92,6 @@ func NewPackageRateRequest(s string) (PackageRateRequest, error) {
 type RateResponse struct {
 	XMLName      xml.Name     `xml:"http://schemas.xmlsoap.org/soap/envelope/ Envelope"`
 	ResponseBody ResponseBody `xml:"Entity"`
-
-	Rates map[string]map[string]map[string]string `json:"rates"`
 }
 
 type ResponseBody struct {
@@ -232,8 +225,8 @@ func init() {
 	soapTemplate = t
 }
 
-func GetRates(s string) (PackageRateResponse, error) {
-	var out PackageRateResponse
+func GetRates(s string) (RateRequest, error) {
+	var out RateRequest
 	if in, err := NewPackageRateRequest(s); err != nil {
 		return out, err
 	} else {
@@ -241,7 +234,7 @@ func GetRates(s string) (PackageRateResponse, error) {
 		for _, p := range in.Packages {
 			buffer := &bytes.Buffer{}
 			encoder := xml.NewEncoder(buffer)
-			client := &http.Client{Timeout: time.Duration(10 * time.Second)}
+			client := &http.Client{Timeout: 10 * time.Second}
 			doc := &bytes.Buffer{}
 			if err := soapTemplate.Execute(doc, p); err != nil {
 				return out, err

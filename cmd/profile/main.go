@@ -6,67 +6,45 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/apigw"
-	. "hc-api/service"
-	"os"
+	"hc-api/pkg/entity"
+	"hc-api/pkg/factory"
+	"hc-api/pkg/service"
 )
 
-var table = os.Getenv("USER_PROFILE_TABLE")
+func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-type Profile struct {
-	Id        string   `json:"id"`
-	BrandIds  []string `json:"brand_ids"`
-	Email     string   `json:"email"`
-	FirstName string   `json:"first_name"`
-	LastName  string   `json:"last_name"`
-	Phone     string   `json:"phone"`
-}
-
-type ProfileRequest struct {
-	Command string  `json:"command"`
-	Session string  `json:"session"`
-	Profile Profile `json:"profile"`
-	Id      string  `json:"id"`
-}
-
-func Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-
-	var r ProfileRequest
-	body := request.Body
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
-		return apigw.BadRequest(err)
+	e := entity.Profile{}
+	if err := factory.Request(r, &e); err != nil {
+		return factory.Response(400, err)
 	}
 
-	fmt.Printf("REQUEST   [%s]\n", body)
-
-	ip := request.RequestContext.Identity.SourceIP
-	if _, err := Invoke().Handler("Session").Session(r.Session).IP(ip).CMD("validate").Post(); err != nil {
-		return apigw.BadAuth(err)
+	e.Authorization.SourceIp = r.RequestContext.Identity.SourceIP
+	t := entity.Token{Authorization: e.Authorization}
+	if _, err := service.Invoke(&t); err != nil {
+		return factory.Response(402, err)
 	}
 
-	switch r.Command {
+	switch e.Case {
 
 	case "save":
-		if err := Put(&r.Profile, &table); err != nil {
-			return apigw.BadRequest(err)
+		if err := service.Save(&e); err != nil {
+			return factory.Response(400, err)
 		} else {
-			return apigw.Ok()
+			return factory.Response(200, &e)
 		}
 
 	case "find":
-		if err := FindOne(&table, &r.Id, &r.Profile); err != nil {
-			return apigw.BadRequest(err)
+		if err := service.Find(&e); err != nil {
+			return factory.Response(400, err)
 		} else {
-			return apigw.Ok(&r.Profile)
+			return factory.Response(200, &e)
 		}
-
-	default:
-		return apigw.BadRequest()
 	}
+
+	return factory.Response(400, fmt.Sprintf("bad case=[%s]", e.Case))
 }
 
 func main() {

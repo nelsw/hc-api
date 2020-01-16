@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/internal/factory/apigwp"
+	"hc-api/pkg/factory"
 	"os"
 	"strings"
 )
@@ -25,7 +25,7 @@ func ApiUrls(s string) map[string]string {
 
 func Handle(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	fmt.Printf("REQUEST   [%v]", request)
-	return apigwp.Response(200, ApiUrls(request.QueryStringParameters["sd"]))
+	return factory.Response(200, ApiUrls(request.QueryStringParameters["sd"]))
 }
 
 func main() {

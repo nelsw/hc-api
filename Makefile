@@ -46,7 +46,14 @@ it: init-request init-template invoke clean
 
 # Removes build and package artifacts.
 clean:
-	rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${TST_OUT}; rm -f ${TMP_YML}; rm -f ${TMP_JSON};
+	rm -f ${SRC_ZIP}; rm -f ${SRC_EXE}; rm -f ${TST_OUT}; rm -f ${TMP_YML}; rm -f ${TMP_JSON}; rm -f file.puml;
+
+#
+doc:
+	gouml i \
+		--ignore ~/go/src/hc-api/cmd/shipping/fedex \
+		--ignore ~/go/src/hc-api/cmd/shipping/usps \
+		--ignore ~/go/src/hc-api/cmd/shipping/ups
 
 # Tests the entire project and outputs a coverage profile.
 test:
