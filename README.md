@@ -9,6 +9,8 @@ highly cohesive, server-less micro-services.
 A service oriented architecture is dominant given that service requests and responses of a server-less application model 
 are materialized through message oriented middleware.
 
+![Image](assets/ddd.jpg?raw=true)
+
 ## Services
 
 Conceptually, (Micro)services are organized around a single branch of the business domain model and provide discrete 
@@ -16,6 +18,8 @@ units of functionality, to achieve predefined business objectives by working alo
 
 Practically, these are characterized as fine grained and independently deployable, capable of asynchronously 
 facilitating decentralized HTTP requests synonymous with modern eCommerce platforms.
+
+## Entities, Values, Aggregates
 
 ## License
 
