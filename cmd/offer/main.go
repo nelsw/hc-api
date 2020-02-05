@@ -5,77 +5,55 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	. "hc-api/service"
-	"os"
-	"time"
+	"hc-api/pkg/client/faas/client"
+	"hc-api/pkg/client/repo"
+	"hc-api/pkg/factory/apigwp"
+	"hc-api/pkg/model/offer"
+	"hc-api/pkg/model/token"
 )
 
-type Offer struct {
-	Id           string `json:"id"`
-	UserId       string `json:"user_id"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Phone        string `json:"phone"`
-	Email        string `json:"email"`
-	ProductId    string `json:"product_id"`
-	ProductName  string `json:"product_name"`
-	ProductPrice int64  `json:"product_price"`
-	ProductQty   int    `json:"product_qty"`
-	ProductImg   string `json:"product_img,omitempty"`
-	Total        int64  `json:"total"`
-	Created      string `json:"created"`
-}
+var InvalidRequest = fmt.Sprintf("bad request\n")
 
-var tableName = os.Getenv("OFFER_TABLE")
+func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := request.QueryStringParameters["cmd"]
-	body := request.Body
-	ip := request.RequestContext.Identity.SourceIP
-	session := request.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
+	var e offer.Proxy
 
-	switch request.QueryStringParameters["cmd"] {
+	ip, err := apigwp.Request(r, &e)
+	if err != nil {
+		return apigwp.Response(400, err)
+	}
+
+	op := e.Subject
+
+	e.Subject = "authenticate"
+	e.SourceIp = ip
+
+	tkn := token.Entity{e.Value, token.Error{}}
+	out, err := client.Invoke(&tkn)
+	if err != nil {
+		return apigwp.Response(500, err)
+	}
+
+	_ = json.Unmarshal(out, &tkn)
+	if tkn.Error.Msg != "" {
+		return apigwp.Response(402, &tkn)
+	}
+
+	e.UserId = tkn.SourceId
+
+	switch op {
 
 	case "save":
-
-		var offer Offer
-		if err := json.Unmarshal([]byte(request.Body), &offer); err != nil {
-			return BadGateway().Error(err).Build()
+		if err := repo.SaveOne(&e.Entity); err != nil {
+			return apigwp.Response(500, err)
 		}
-
-		ip := request.RequestContext.Identity.SourceIP
-		session := request.QueryStringParameters["session"]
-
-		um, err := Invoke().Handler("User").IP(ip).CMD("find").Session(session).Build()
-		if err != nil {
-			return BadRequest().Error(err).Build()
-		}
-
-		id := fmt.Sprintf("%v", um["profile_id"])
-		pm, err := Invoke().Handler("UserProfile").IP(ip).Session(session).CMD("find").QSP("id", id).Build()
-		if err != nil {
-			return BadRequest().Error(err).Build()
-		}
-
-		offer.Email = fmt.Sprintf("%v", pm["email"])
-		offer.Phone = fmt.Sprintf("%v", pm["phone"])
-		offer.FirstName = fmt.Sprintf("%v", pm["first_name"])
-		offer.LastName = fmt.Sprintf("%v", pm["last_name"])
-		offer.Created = time.Now().UTC().Format(time.RFC3339)
-		offer.Total = int64(offer.ProductQty) * offer.ProductPrice
-
-		if err := Put(offer, &tableName); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else {
-			return Ok().Build()
-		}
-
-	default:
-		return BadRequest().Build()
+		return apigwp.Response(200)
 	}
+
+	return apigwp.Response(400, InvalidRequest)
+
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }

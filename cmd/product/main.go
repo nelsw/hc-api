@@ -6,114 +6,78 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/google/uuid"
-	. "hc-api/service"
-	"os"
-	"strings"
+	"hc-api/pkg/client/faas/client"
+	"hc-api/pkg/client/repo"
+	"hc-api/pkg/factory/apigwp"
+	"hc-api/pkg/model/product"
+	"hc-api/pkg/model/token"
 )
 
-type Product struct {
-	// ids and so forth.
-	Id        string `json:"id"`
-	Sku       string `json:"sku"`
-	AddressId string `json:"address_id"`
-	BrandId   string `json:"brand_id,omitempty"`
-	Owner     string `json:"owner"` // user_id
-	// basic details.
-	Category    string   `json:"category"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Price       int64    `json:"price"`
-	ImageSet    []string `json:"image_set"`
-	Quantity    string   `json:"quantity"`
-	Stock       string   `json:"stock"`
-	Deleted     string   `json:"deleted,omitempty"`
-	// packaging details (calc shipping rates)
-	Unit    string  `json:"unit"` // LB
-	Weight  float32 `json:"weight"`
-	Width   int     `json:"width"`
-	Height  int     `json:"height"`
-	Length  int     `json:"length"`
-	Session string  `json:"session"`
-}
+var InvalidRequest = fmt.Sprintf("bad request\n")
+var UnauthorizedRequest = fmt.Sprintf("token invalid or expired\n")
 
-var t = os.Getenv("PRODUCT_TABLE")
+func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cmd := request.QueryStringParameters["cmd"]
-	body := request.Body
-	ip := request.RequestContext.Identity.SourceIP
-	session := request.QueryStringParameters["session"]
-	fmt.Printf("REQUEST cmd=[%s], ip=[%s], session=[%s], body=[%s]\n", cmd, ip, session, body)
+	var e product.Proxy
 
-	switch request.QueryStringParameters["cmd"] {
+	ip, err := apigwp.Request(r, &e)
+	if err != nil {
+		return apigwp.Response(400, err)
+	}
 
-	case "find-all":
-		var p []Product
-		if err := FindAll(&t, &p); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else {
-			return Ok().Data(&p).Build()
-		}
+	op := e.Subject
 
-	case "find-by-brand-id":
-		var p []Product
-		an := "brand_id"
-		av := request.QueryStringParameters["brand-id"]
-		if err := FindAllByAttribute(&t, &an, &av, &p); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else {
-			return Ok().Data(&p).Build()
-		}
+	e.Subject = "authenticate"
+	e.SourceIp = ip
 
-	case "find-by-id":
-		var p Product
-		s := request.QueryStringParameters["id"]
-		if err := FindOne(&t, &s, &p); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else {
-			return Ok().Data(&p).Build()
-		}
+	tkn := token.Entity{e.Value, token.Error{}}
 
-	case "find-by-ids":
-		var p []Product
-		ss := strings.Split(request.QueryStringParameters["ids"], ",")
-		if err := FindAllById(t, ss, &p); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else {
-			return Ok().Data(&p).Build()
-		}
+	if out, err := client.Invoke(&tkn); err != nil {
+		return apigwp.Response(500, err)
+	} else if err := json.Unmarshal(out, &tkn); err != nil {
+		return apigwp.Response(500, err)
+	}
+
+	if tkn.SourceId == "" {
+		return apigwp.Response(402, UnauthorizedRequest)
+	}
+
+	e.OwnerId = tkn.SourceId
+
+	switch op {
 
 	case "save":
-		var p Product
-		if err := json.Unmarshal([]byte(request.Body), &p); err != nil {
-			return BadGateway().Error(err).Build()
-		} else if len(p.Name) < 3 {
-			return BadRequest().Error(fmt.Errorf("bad name [%s], must be at least 3 characters in length", p.Name)).Build()
-		} else if p.Price < 0 {
-			return BadRequest().Error(fmt.Errorf("bad price (integer) [%d]", p.Price)).Build()
+		newProduct := e.Id == ""
+		if newProduct {
+			s, _ := uuid.NewUUID()
+			e.Id = s.String()
 		}
+		if err := repo.SaveOne(&e.Entity); err != nil {
+			return apigwp.Response(500, err)
+		}
+		if newProduct {
+			// todo - update user
+		}
+		return apigwp.Response(200)
 
-		if userId, err := ValidateSession(p.Session, request.RequestContext.Identity.SourceIP); err != nil {
-			return Unauthorized().Error(err).Build()
+	case "find-one":
+		if err := repo.FindOne(&e.Entity); err != nil {
+			return apigwp.Response(404, err)
+		}
+		return apigwp.Response(200, &e)
+
+	case "find-many":
+		if out, err := repo.FindMany(&e.Entity, e.Ids); err != nil {
+			return apigwp.Response(404, err)
 		} else {
-			p.Owner = userId
-			p.Stock = p.Quantity
-			if p.Id == "" {
-				id, _ := uuid.NewUUID()
-				p.Id = id.String()
-			}
-			if err := Put(p, &t); err != nil {
-				return InternalServerError().Error(err).Build()
-			} else {
-				return Ok().Data(&p).Build()
-			}
+			return apigwp.Response(200, &out)
 		}
 
-	default:
-		return BadRequest().Build()
 	}
+
+	return apigwp.Response(400, InvalidRequest)
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }

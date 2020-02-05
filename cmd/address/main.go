@@ -1,62 +1,80 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	. "hc-api/service"
-	"os"
-	"strings"
+	"hc-api/pkg/client/faas/client"
+	"hc-api/pkg/client/repo"
+	"hc-api/pkg/factory/apigwp"
+	"hc-api/pkg/model/address"
 )
 
-var t = os.Getenv("ADDRESS_TABLE")
+func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-type Address struct {
-	Id      string `json:"id"`
-	Session string `json:"session"`
-	Street  string `json:"street"`
-	Unit    string `json:"unit,omitempty"`
-	City    string `json:"city"`
-	State   string `json:"state"`
-	Zip5    string `json:"zip_5"`
-	Zip4    string `json:"zip_4,omitempty"`
-}
+	var request address.Request
 
-func HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("REQUEST [%v]", request)
+	ip, err := apigwp.Request(r, &request)
+	if err != nil {
+		return apigwp.Response(400, err)
+	}
 
-	switch request.QueryStringParameters["cmd"] {
+	request.SourceIp = ip // we set the ip here for CORS prevention
+
+	if out, err := client.Call(request, "hcTokenHandler"); err != nil {
+		return apigwp.Response(500, err)
+	} else {
+		_ = json.Unmarshal(out, &request)
+		if len(request.JwtSlice) < 1 {
+			return apigwp.Response(402)
+		}
+	}
+
+	switch request.Op {
+
+	case "find-one":
+		if err := repo.FindOne(&request.Entity); err != nil {
+			return apigwp.Response(404, err)
+		}
+		return apigwp.Response(200, &request.Entity)
 
 	case "save":
-		var a Address
-		session := request.QueryStringParameters["session"]
-		if _, err := ValidateSession(session, request.RequestContext.Identity.SourceIP); err != nil {
-			return Unauthorized().Error(err).Build()
-		} else if str, err := VerifyAddress(request.Body); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else if err := json.Unmarshal([]byte(str), &a); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else if err := Put(a, &t); err != nil {
-			return InternalServerError().Error(err).Build()
+
+		oldId := request.Id
+
+		in := map[string]interface{}{"op": "validate", "address": request.Entity}
+
+		if out, err := client.Call(&in, "hcUspsHandler"); err != nil {
+			return apigwp.Response(500, err)
 		} else {
-			return Ok().Data(&a).Build()
+			_ = json.Unmarshal(out, &request.Entity)
 		}
 
-	case "find-by-ids":
-		var p []Address
-		ss := strings.Split(request.QueryStringParameters["ids"], ",")
-		if err := FindAllById(t, ss, &p); err != nil {
-			return InternalServerError().Error(err).Build()
-		} else {
-			return Ok().Data(&p).Build()
+		newId := base64.StdEncoding.EncodeToString([]byte(request.String()))
+
+		if newId != oldId {
+
+			ur1 := map[string]interface{}{"op": "add", "id": request.SourceId, "address_ids": []string{newId}}
+			if _, err := client.Call(ur1, "hcUserHandler"); err != nil {
+				return apigwp.Response(500, err)
+			}
+
+			if oldId != "" {
+
+				ur2 := map[string]interface{}{"op": "delete", "id": request.SourceId, "address_ids": []string{oldId}}
+				if _, err := client.Call(ur2, "hcUserHandler"); err != nil {
+					return apigwp.Response(500, err)
+				}
+			}
 		}
 
-	default:
-		return BadRequest().Build()
+		return apigwp.Response(200, &request.Entity)
 	}
+
+	return apigwp.Response(400)
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(Handle)
 }
