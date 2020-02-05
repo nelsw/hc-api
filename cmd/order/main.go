@@ -2,89 +2,100 @@ package main
 
 import (
 	"encoding/base64"
-	"fmt"
+	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/entity"
-	"hc-api/pkg/factory"
-	"hc-api/pkg/service"
+	"hc-api/pkg/client/faas/client"
+	"hc-api/pkg/client/repo"
+	"hc-api/pkg/factory/apigwp"
+	"hc-api/pkg/model/order"
+	"hc-api/pkg/util"
 	"strings"
 	"sync"
 )
 
+var vs = []string{"UPS", "USPS", "FEDEX"}
+
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	e := entity.Order{}
-	if err := factory.Request(r, &e); err != nil {
-		return factory.Response(400, err)
+	var request order.Request
+
+	ip, err := apigwp.Request(r, &request)
+	if err != nil {
+		return apigwp.Response(400, err)
 	}
 
-	e.Authorization.SourceIp = r.RequestContext.Identity.SourceIP
-	t := entity.Token{Authorization: e.Authorization}
-	if uid, err := service.Invoke(&t); err != nil {
-		return factory.Response(402, err)
+	request.SourceIp = ip
+
+	if out, err := client.Call(request, "hcTokenHandler"); err != nil {
+		return apigwp.Response(500, err)
 	} else {
-		e.UserId = string(uid)
+		_ = json.Unmarshal(out, &request)
+		if len(request.JwtSlice) < 1 {
+			return apigwp.Response(402)
+		}
 	}
 
-	switch e.Case {
+	switch request.Op {
 
 	case "find-by-ids":
-		if err := service.Find(&e); err != nil {
-			return factory.Response(400, err)
+		if out, err := repo.FindMany(&request, request.Ids); err != nil {
+			return apigwp.Response(400, err)
 		} else {
-			return factory.Response(200, e.Results)
+			return apigwp.Response(200, &out)
 		}
 
 	case "calc-rates":
-		e.PackageIds = make([]string, len(e.Packages))
-		for i, p := range e.Packages {
+		//request.PackageIds = make([]string, len(request.Packages))
+
+		for i, p := range request.Packages {
+
 			if p.Id == "" {
 				continue
 			}
-			e.PackageIds = append(e.PackageIds, p.Id)
+
 			p.TotalLength = p.ProductLength
 			p.TotalWeight = p.ProductWeight * float32(p.ProductQty)
 			p.TotalHeight = p.ProductHeight * p.ProductQty
 			p.TotalWidth = p.ProductWidth * p.ProductQty
 
-			aFrom, _ := base64.StdEncoding.DecodeString(p.AddressIdFrom)
-			arrFrom := strings.Split(string(aFrom), ", ")
-			p.ZipOrigination = strings.Split(arrFrom[len(arrFrom)-2], "-")[0]
-			p.ShipperStateCode = arrFrom[len(arrFrom)-3]
+			p.ZipOrigination = util.ZipFromAddressId(p.AddressId)
+			p.ShipperStateCode = util.StateFromAddressId(p.AddressId)
 
-			aTo, _ := base64.StdEncoding.DecodeString(p.AddressIdTo)
-			arrTo := strings.Split(string(aTo), ", ")
-			p.ZipDestination = strings.Split(arrTo[len(arrTo)-2], "-")[0]
-			p.RecipientStateCode = arrTo[len(arrTo)-3]
+			p.ZipDestination = util.ZipFromAddressId(request.AddressId)
+			p.RecipientStateCode = util.StateFromAddressId(request.AddressId)
 
-			e.Packages[i] = p
+			request.Packages[i] = p
 
-			vs := []string{"UPS", "USPS"}
-
-			orders := make(chan entity.Order)
+			orders := make(chan order.Entity)
 
 			var wg sync.WaitGroup
 			wg.Add(len(vs))
 
 			for _, v := range vs {
-				go func(v string) {
-					defer wg.Done()
-					e.Vendor = v
 
-					//service.Invoke()
-					//err := internal.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
+				go func(v string) {
+
+					defer wg.Done()
+
+					//proxy.Invoke()
+					//err := pkg.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
 					//if err != nil {
 					//	log.Println(err)
 					//}
-					orders <- e
+
+					orders <- request
 				}(v)
 			}
 
 			rates := map[string]map[string]map[string]string{}
+
 			go func() {
+
 				for o := range orders {
+
 					for k, v := range o.Rates {
+
 						if _, m := rates[k]; m {
 							rates[k][o.Vendor] = v[o.Vendor]
 						} else {
@@ -96,43 +107,25 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 			wg.Wait()
 
-			e.Rates = rates
-			return factory.Response(200, &e)
+			return apigwp.Response(200, &rates)
 		}
 
 	case "save-order":
 		// sum all packages
-		for _, p := range e.Packages {
-			e.OrderSum += p.ProductPrice + p.VendorPrice
+		for _, p := range request.Packages {
+			request.OrderSum += p.ProductPrice + p.ShipRate
 		}
 
-		user := entity.User{Id: e.UserId}
-		if err := service.Find(&user); err != nil {
-			return factory.Response(404, err)
+		if err := repo.SaveOne(&request.Entity); err != nil {
+			return apigwp.Response(500, err)
+			//} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
+			//	return apigwp.Response(500, err)
 		} else {
-			e.ProfileId = user.ProfileId
-		}
-
-		profile := entity.Profile{Id: e.ProfileId}
-		if err := service.Find(&profile); err != nil {
-			return factory.Response(404, err)
-		} else {
-			e.Phone = profile.Phone
-			e.Email = profile.Email
-			e.FirstName = profile.FirstName
-			e.LastName = profile.LastName
-			e.PackageIds = nil
-		}
-
-		if err := service.Save(&e); err != nil {
-			return factory.Response(500, err)
-		} else if err := service.Update(&user, "add order_ids :p"); err != nil {
-			return factory.Response(500, err)
-		} else {
-			return factory.Response(200, &e)
+			return apigwp.Response(200)
 		}
 	}
-	return factory.Response(400, fmt.Sprintf("bad case=[%s]", e.Case))
+
+	return apigwp.Response(400)
 }
 
 func main() {

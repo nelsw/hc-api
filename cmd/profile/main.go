@@ -1,50 +1,68 @@
-// UserProfile is exactly what it appears to be, a user profile domain model entity.
-// It also promotes separation of concerns by decoupling user profile details from the primary user entity. IF
-// UserProfile.EmailOld != UserProfile.EmailNew, AND User.Email == UserProfile.EmailOld, THEN we must prompt the user to
-// confirm new email address. IF UserProfile.Password1 is not blank AND UserProfile.Password2 is not blank AND valid AND
-// UserProfile.Password1 == UserProfile.Password2, then we update the UserPassword entity and return OK.
+// UserProfile is exactly what it appears to be, a user item domain model validation.
+// It also promotes separation of concerns by decoupling user item details from the primary user validation. IF
+// UserProfile.EmailOld != UserProfile.EmailNew, AND User.Credential == UserProfile.EmailOld, THEN we must prompt the user to
+// confirm new email validation. IF UserProfile.Password1 is not blank AND UserProfile.Password2 is not blank AND valid AND
+// UserProfile.Password1 == UserProfile.Password2, then we update the UserPassword validation and return OK.
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/entity"
-	"hc-api/pkg/factory"
-	"hc-api/pkg/service"
+	"github.com/google/uuid"
+	"hc-api/pkg/client/faas/client"
+	"hc-api/pkg/client/repo"
+	"hc-api/pkg/factory/apigwp"
+	"hc-api/pkg/model/profile"
+	"hc-api/pkg/model/token"
 )
+
+var InvalidRequest = fmt.Sprintf("bad request\n")
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	e := entity.Profile{}
-	if err := factory.Request(r, &e); err != nil {
-		return factory.Response(400, err)
+	var e profile.Proxy
+
+	ip, err := apigwp.Request(r, &e)
+	if err != nil {
+		return apigwp.Response(400, err)
 	}
 
-	e.Authorization.SourceIp = r.RequestContext.Identity.SourceIP
-	t := entity.Token{Authorization: e.Authorization}
-	if _, err := service.Invoke(&t); err != nil {
-		return factory.Response(402, err)
+	op := e.Subject
+
+	e.Subject = "authenticate"
+	e.SourceIp = ip // we set the ip here for CORS prevention
+
+	tkn := token.Entity{e.Value, token.Error{}}
+	out, err := client.Invoke(&tkn)
+	if err != nil {
+		return apigwp.Response(500, err)
 	}
 
-	switch e.Case {
+	_ = json.Unmarshal(out, &tkn)
+	if tkn.Error.Msg != "" {
+		return apigwp.Response(402, &tkn)
+	}
+
+	switch op {
 
 	case "save":
-		if err := service.Save(&e); err != nil {
-			return factory.Response(400, err)
-		} else {
-			return factory.Response(200, &e)
+		newProfile := e.Id == ""
+		if newProfile {
+			s, _ := uuid.NewUUID()
+			e.Id = s.String()
 		}
-
-	case "find":
-		if err := service.Find(&e); err != nil {
-			return factory.Response(400, err)
-		} else {
-			return factory.Response(200, &e)
+		if err := repo.SaveOne(&e.Entity); err != nil {
+			return apigwp.Response(500, err)
 		}
+		if newProfile {
+			// todo
+		}
+		return apigwp.Response(200, &e)
 	}
 
-	return factory.Response(400, fmt.Sprintf("bad case=[%s]", e.Case))
+	return apigwp.Response(400, InvalidRequest)
 }
 
 func main() {

@@ -3,79 +3,74 @@ package main
 import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
-	"hc-api/pkg/token"
+	"hc-api/pkg/model/profile"
+	"hc-api/pkg/model/token"
+	"hc-api/test"
 	"testing"
 )
 
-const (
-	sourceIp  = "127.0.0.1"
-	userId    = "638b13ef-ab84-410a-abb0-c9fd5da45c62"
-	profileId = "df3d6542-c828-49e9-a62c-cb6e67d5d730"
-)
-
 var (
-	session    = token.NewToken(userId, sourceIp)
-	requestCtx = events.APIGatewayProxyRequestContext{Identity: events.APIGatewayRequestIdentity{SourceIP: sourceIp}}
-	profile    = Profile{
-		Email:     "connor@wiesow.com",
-		FirstName: "Connor",
-		LastName:  "Van Elswyk",
-		Phone:     "555-555-5555",
+	requestCtx = events.APIGatewayProxyRequestContext{
+		Identity: events.APIGatewayRequestIdentity{
+			SourceIP: test.Ip,
+		},
+	}
+	proxy = profile.Proxy{
+		token.Value{
+			"",
+			"",
+			[]string{test.CookieValid},
+			test.Ip,
+		},
+		profile.Entity{
+			"",
+			"connor@wiesow.com",
+			"Connor",
+			"Van Elswyk",
+			"555-555-5555",
+		},
 	}
 )
 
-func TestHandleValidSave(t *testing.T) {
-	b, _ := json.Marshal(ProfileRequest{Command: "save", Session: session, Profile: profile})
+func TestHandleBadSubject(t *testing.T) {
+	b, _ := json.Marshal(&proxy)
+	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
+	if out.StatusCode != 400 {
+		t.Fail()
+	}
+}
+
+func TestHandleSaveNew(t *testing.T) {
+	proxy.Subject = "save"
+	b, _ := json.Marshal(&proxy)
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
 	if out.StatusCode != 200 {
 		t.Fail()
 	}
 }
 
-func TestHandleValidFind(t *testing.T) {
-	b, _ := json.Marshal(ProfileRequest{Command: "find", Session: session, Id: profileId})
+func TestHandleSaveOld(t *testing.T) {
+	proxy.Subject = "save"
+	proxy.Id = test.ProfileId
+	proxy.LastName = "van Elswyk"
+	b, _ := json.Marshal(&proxy)
 	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
 	if out.StatusCode != 200 {
 		t.Fail()
 	}
 }
 
-func TestHandleBadRequest(t *testing.T) {
+func TestHandleExpired(t *testing.T) {
+	proxy.JwtSlice = []string{test.CookieExpired}
+	b, _ := json.Marshal(&proxy)
+	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
+	if out.StatusCode != 402 {
+		t.Fail()
+	}
+}
+
+func TestHandleBadProxyRequest(t *testing.T) {
 	if out, _ := Handle(events.APIGatewayProxyRequest{}); out.StatusCode != 400 {
-		t.Fail()
-	}
-}
-
-func TestHandleBadCommand(t *testing.T) {
-	b, _ := json.Marshal(ProfileRequest{Command: "", Session: session})
-	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
-	if out.StatusCode != 400 {
-		t.Fail()
-	}
-}
-
-func TestHandleBadAuth(t *testing.T) {
-	b, _ := json.Marshal(ProfileRequest{Command: "save", Session: "", Profile: profile})
-	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
-	if out.StatusCode != 401 {
-		t.Fail()
-	}
-}
-
-func TestHandleBadSave(t *testing.T) {
-	table = ""
-	b, _ := json.Marshal(ProfileRequest{Command: "save", Session: session, Profile: profile})
-	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
-	if out.StatusCode != 400 {
-		t.Fail()
-	}
-}
-
-func TestHandleBadFind(t *testing.T) {
-	table = ""
-	b, _ := json.Marshal(ProfileRequest{Command: "find", Session: session, Id: ""})
-	out, _ := Handle(events.APIGatewayProxyRequest{RequestContext: requestCtx, Body: string(b)})
-	if out.StatusCode != 400 {
 		t.Fail()
 	}
 }

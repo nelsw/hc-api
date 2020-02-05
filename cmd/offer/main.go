@@ -1,52 +1,57 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/entity"
-	"hc-api/pkg/factory"
-	"hc-api/pkg/service"
+	"hc-api/pkg/client/faas/client"
+	"hc-api/pkg/client/repo"
+	"hc-api/pkg/factory/apigwp"
+	"hc-api/pkg/model/offer"
+	"hc-api/pkg/model/token"
 )
+
+var InvalidRequest = fmt.Sprintf("bad request\n")
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	e := entity.Offer{}
-	if err := factory.Request(r, &e); err != nil {
-		// Unable to unmarshal or validate ClientCredential.
-		return factory.Response(400, err)
+	var e offer.Proxy
+
+	ip, err := apigwp.Request(r, &e)
+	if err != nil {
+		return apigwp.Response(400, err)
 	}
 
-	e.Authorization.SourceIp = r.RequestContext.Identity.SourceIP
-	t := entity.Token{Authorization: e.Authorization}
-	if uid, err := service.Invoke(&t); err != nil {
-		// Entity could not be processed, theoretically impossible when creating tokens.
-		return factory.Response(422, err)
-	} else {
-		e.UserId = string(uid)
+	op := e.Subject
+
+	e.Subject = "authenticate"
+	e.SourceIp = ip
+
+	tkn := token.Entity{e.Value, token.Error{}}
+	out, err := client.Invoke(&tkn)
+	if err != nil {
+		return apigwp.Response(500, err)
 	}
 
-	u := entity.User{Id: e.UserId}
-	if err := service.Find(&u); err != nil {
-		return factory.Response(404, err)
-	} else {
-		e.ProfileId = u.ProfileId
+	_ = json.Unmarshal(out, &tkn)
+	if tkn.Error.Msg != "" {
+		return apigwp.Response(402, &tkn)
 	}
 
-	p := entity.Profile{Id: e.ProfileId}
-	if err := service.Find(&p); err != nil {
-		return factory.Response(404, err)
-	} else {
-		e.Phone = p.Phone
-		e.Email = p.Email
-		e.FirstName = p.FirstName
-		e.LastName = p.LastName
+	e.UserId = tkn.SourceId
+
+	switch op {
+
+	case "save":
+		if err := repo.SaveOne(&e.Entity); err != nil {
+			return apigwp.Response(500, err)
+		}
+		return apigwp.Response(200)
 	}
 
-	if out, err := service.Invoke(&e); err != nil {
-		return factory.Response(400, err)
-	} else {
-		return factory.Response(200, &out)
-	}
+	return apigwp.Response(400, InvalidRequest)
+
 }
 
 func main() {
