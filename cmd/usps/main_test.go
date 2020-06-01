@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hc-api/pkg/model/usps"
-	"hc-api/test"
+	"sam-app/pkg/model/usps"
+	"sam-app/test"
 	"testing"
 )
 

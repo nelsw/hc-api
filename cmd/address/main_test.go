@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
-	"hc-api/pkg/model/address"
-	"hc-api/test"
+	"sam-app/pkg/model/address"
+	"sam-app/test"
 	"testing"
 )
 

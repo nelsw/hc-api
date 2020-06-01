@@ -1,20 +1,30 @@
 package main
 
 import (
-	"hc-api/pkg/model/user"
-	"hc-api/test"
+	"sam-app/pkg/model/user"
+	"sam-app/test"
 	"testing"
 )
 
 func TestHandleAdd(t *testing.T) {
-	r := user.Request{"add", test.UserId, "address_ids", []string{test.AddressId}}
+	r := user.Request{
+		"add",
+		test.UserId,
+		"address_ids",
+		[]string{test.AddressId},
+	}
 	if err := Handle(r); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestHandleDelete(t *testing.T) {
-	r := user.Request{"delete", test.UserId, "address_ids", []string{test.AddressId}}
+	r := user.Request{
+		"delete",
+		test.UserId,
+		"address_ids",
+		[]string{test.AddressId},
+	}
 	if err := Handle(r); err != nil {
 		t.Fatal(err)
 	}

@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
-	"hc-api/pkg/model/credential"
-	"hc-api/test"
+	"sam-app/pkg/model/credential"
+	"sam-app/test"
 	"testing"
 )
 

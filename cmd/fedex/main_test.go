@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hc-api/pkg/model/fedex"
-	"hc-api/test"
+	"sam-app/pkg/model/fedex"
+	"sam-app/test"
 	"testing"
 )
 
@@ -18,11 +18,7 @@ func TestGenerateSOAPRequest(t *testing.T) {
 		Height:           5,
 	}
 
-	in := fedex.RateRequest{
-		"CA",
-		"90210",
-		[]fedex.Package{r},
-	}
+	in := fedex.RateRequest{"CA", "90210", []fedex.Package{r}}
 
 	if out, err := Handle(in); err != nil {
 		t.Fatal(err)
