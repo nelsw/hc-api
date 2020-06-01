@@ -1,6 +1,6 @@
 # Cleans the project directory by removing temporary files and build artifacts.
 clean:
-	@OUTPUTS=( "main.zip" "main" "cp.out" "tmp.yml" "tmp.json" "file.puml" ) sh scripts/clean-project.sh
+	@OUTPUTS=( "main.zip" "main" "cp.out" "tmp.yml" "tmp.json" "file.puml" "request.json" "template.json" ) sh scripts/clean-project.sh
 
 # Tests the entire project and outputs a coverage item.
 test:
