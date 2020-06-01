@@ -4,13 +4,13 @@
 echo "==> Invoking a local AWS Lambda Function..."
 
 # The following conditions validation required command variables.
-if [ -z "${FN}" ]; then echo "ERROR: Set FN to the function name of the λƒ to build"; exit 1; fi
+if [ -z "${FUNCTION}" ]; then echo "ERROR: Set FUNCTION to the function name of the λƒ to build"; exit 1; fi
 if [ -z "${ROLE}" ]; then echo "ERROR: Set ROLE to the AWS IAM Role of the λƒ to build"; exit 1; fi
-if [ -z "${DOM}" ]; then echo "ERROR: Set DOM to the domain of the λƒ to build"; exit 1; fi
+if [ -z "${DOMAIN}" ]; then echo "ERROR: Set DOMAIN to the domain of the λƒ to build"; exit 1; fi
 if [ -z "${CASE}" ]; then echo "ERROR: Set CASE to the action performed by the λƒ to build"; exit 1; fi
 
 # Create a temporary template.json file for local sam invocation.
-jq -n "$(yq r -j build/template.yml)" > template.json;
+jq -n "$(yq r -j template.yml)" > template.json;
 
 # Update the sam template with required properties.
 if [ -z "${TIMEOUT}" ];  then jq --arg var "${TIMEOUT}" '.Resources.handler.Properties.Timeout=$var' template.json; fi
