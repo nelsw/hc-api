@@ -1,7 +1,7 @@
 package util
 
 import (
-	"hc-api/pkg/model/product"
+	"sam-app/pkg/model/product"
 	"testing"
 )
 
@@ -49,5 +49,5 @@ func TestValidatePasswordCharErr(t *testing.T) {
 
 func TestTypeName(t *testing.T) {
 	s := TypeName(product.Entity{})
-	t.Log(s)
+	t.Log(s) // first step towards generics
 }
