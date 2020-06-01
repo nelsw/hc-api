@@ -8,7 +8,7 @@ test:
 
 # Builds the source executable from a specified path.
 build:
-	GOOS=linux GOARCH=amd64 go build -o main ./cmd/${DOMAIN}/main.go
+	GOOS=linux GOARCH=amd64 go build -o main ./handler/${DOMAIN}/main.go
 
 # Packages the executable into a zip file with flags -9, compress better, and -r, recurse into directories.
 package: build
