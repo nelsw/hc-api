@@ -13,21 +13,22 @@ import (
 var h = map[string]string{"Access-Control-Allow-Origin": "*"}
 var stage = os.Getenv("STAGE")
 
+func LogRequest(r events.APIGatewayProxyRequest) {
+	fmt.Printf("PROXY REQUEST [%v]\n", r)
+}
+
 // BaseRequest attempts to unmarshal the wrapper body data into the given GoodValidator.
 // Returns nil unless an error occurs during interface deserialization or validation.
 func Request(r events.APIGatewayProxyRequest, i request.Validator) (string, error) {
-	body := r.Body
-	fmt.Printf("REQUEST  body=[%s]\n", body)
-	if err := json.Unmarshal([]byte(body), &i); err != nil {
+	LogRequest(r)
+	if err := json.Unmarshal([]byte(r.Body), &i); err != nil {
 		return "", err
 	} else if err := i.Validate(); err != nil {
 		return "", err
+	} else if stage == "TEST" || stage == "DEV" {
+		return "127.0.0.1", nil
 	} else {
-		ip := r.RequestContext.Identity.SourceIP
-		if ip == "" && stage == "TEST" {
-			ip = "127.0.0.1"
-		}
-		return ip, nil
+		return r.RequestContext.Identity.SourceIP, nil
 	}
 }
 
@@ -49,6 +50,7 @@ func Response(i int, vv ...interface{}) (events.APIGatewayProxyResponse, error) 
 			body = string(b)
 		}
 	}
-	fmt.Printf("RESPONSE body=[%s] code=[%d]\n", body, i)
-	return events.APIGatewayProxyResponse{StatusCode: i, Headers: h, Body: body}, nil
+	r := events.APIGatewayProxyResponse{StatusCode: i, Headers: h, Body: body}
+	fmt.Printf("PROXY RESPONSE [%v]\n", r)
+	return r, nil
 }
