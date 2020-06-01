@@ -2,14 +2,15 @@ package offer
 
 import (
 	"fmt"
-	"hc-api/pkg/model/token"
 	"os"
+	"sam-app/pkg/model/token"
 )
 
 var ErrCodeDetailEmpty = fmt.Errorf("offer detail empty")
 var ErrCodeProductIdEmpty = fmt.Errorf("product id empty")
 
-type Proxy struct {
+type Request struct {
+	Op string `json:"op"`
 	token.Value
 	Entity
 }

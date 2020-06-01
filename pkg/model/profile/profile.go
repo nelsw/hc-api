@@ -1,11 +1,12 @@
 package profile
 
 import (
-	"hc-api/pkg/model/token"
 	"os"
+	"sam-app/pkg/model/token"
 )
 
-type Proxy struct {
+type Request struct {
+	Op string `json:"op"`
 	token.Value
 	Entity
 }

@@ -2,9 +2,9 @@ package address
 
 import (
 	"fmt"
-	"hc-api/pkg/model/token"
-	"hc-api/pkg/util"
 	"os"
+	"sam-app/pkg/model/token"
+	"sam-app/pkg/util"
 	"strings"
 )
 

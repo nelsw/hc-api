@@ -3,9 +3,9 @@ package repo
 
 import (
 	"encoding/json"
-	"hc-api/pkg/client/faas/client"
-	"hc-api/pkg/model/request"
-	"hc-api/pkg/util"
+	"sam-app/pkg/client/faas/client"
+	"sam-app/pkg/model/request"
+	"sam-app/pkg/util"
 )
 
 const functionName = "hcRepoHandler"

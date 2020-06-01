@@ -5,9 +5,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"hc-api/pkg/client/faas"
 	"log"
 	"os"
+	"sam-app/pkg/client/faas"
 )
 
 var l *lambda.Lambda

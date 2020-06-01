@@ -2,15 +2,16 @@ package product
 
 import (
 	"fmt"
-	"hc-api/pkg/model/token"
 	"os"
+	"sam-app/pkg/model/token"
 )
 
 var (
 	ErrCodeBadName = fmt.Errorf("product name must be at least 2 characters in length")
 )
 
-type Proxy struct {
+type Request struct {
+	Op  string   `json:"op"`
 	Ids []string `json:"ids"`
 	token.Value
 	Entity

@@ -1,8 +1,8 @@
 package order
 
 import (
-	"hc-api/pkg/model/token"
 	"os"
+	"sam-app/pkg/model/token"
 )
 
 type Request struct {

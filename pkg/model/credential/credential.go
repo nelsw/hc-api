@@ -1,8 +1,8 @@
 package credential
 
 import (
-	"hc-api/pkg/util"
 	"os"
+	"sam-app/pkg/util"
 )
 
 type Entity struct {
