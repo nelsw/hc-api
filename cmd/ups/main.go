@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/model/ups"
+	"sam-app/pkg/model/ups"
 )
 
 func Handle(r ups.PostageRateRequest) (interface{}, error) {

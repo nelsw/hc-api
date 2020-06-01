@@ -3,12 +3,12 @@ package main
 import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/client/faas/client"
-	"hc-api/pkg/client/repo"
-	"hc-api/pkg/factory/apigwp"
-	"hc-api/pkg/model/credential"
-	"hc-api/pkg/model/password"
-	"hc-api/pkg/model/token"
+	"sam-app/pkg/client/faas/client"
+	"sam-app/pkg/client/repo"
+	"sam-app/pkg/factory/apigwp"
+	"sam-app/pkg/model/credential"
+	"sam-app/pkg/model/password"
+	"sam-app/pkg/model/token"
 	"strings"
 )
 

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/model/fedex"
+	"sam-app/pkg/model/fedex"
 )
 
 func Handle(i fedex.RateRequest) (interface{}, error) {

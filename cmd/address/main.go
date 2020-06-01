@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/client/faas/client"
-	"hc-api/pkg/client/repo"
-	"hc-api/pkg/factory/apigwp"
-	"hc-api/pkg/model/address"
+	"sam-app/pkg/client/faas/client"
+	"sam-app/pkg/client/repo"
+	"sam-app/pkg/factory/apigwp"
+	"sam-app/pkg/model/address"
 )
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -55,21 +55,30 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 		if newId != oldId {
 
-			ur1 := map[string]interface{}{"op": "add", "id": request.SourceId, "address_ids": []string{newId}}
+			ur1 := map[string]interface{}{"op": "add", "id": request.SourceId, "ids": []string{newId}, "keyword": "add address_ids"}
 			if _, err := client.Call(ur1, "hcUserHandler"); err != nil {
 				return apigwp.Response(500, err)
 			}
 
 			if oldId != "" {
 
-				ur2 := map[string]interface{}{"op": "delete", "id": request.SourceId, "address_ids": []string{oldId}}
+				ur2 := map[string]interface{}{"op": "delete", "id": request.SourceId, "ids": []string{oldId}, "keyword": "delete address_ids"}
 				if _, err := client.Call(ur2, "hcUserHandler"); err != nil {
 					return apigwp.Response(500, err)
 				}
 			}
 		}
 
-		return apigwp.Response(200, &request.Entity)
+	case "delete":
+
+		if err := repo.Delete(&request, []string{request.Id}); err != nil {
+			return apigwp.Response(500, err)
+		}
+		ur2 := map[string]interface{}{"op": "delete", "id": request.SourceId, "ids": []string{request.Id}, "keyword": "delete address_ids"}
+		if _, err := client.Call(ur2, "hcUserHandler"); err != nil {
+			return apigwp.Response(500, err)
+		}
+		return apigwp.Response(200)
 	}
 
 	return apigwp.Response(400)

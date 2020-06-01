@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/factory/apigwp"
 	"os"
+	"sam-app/pkg/factory/apigwp"
 )
 
 var m = map[string]string{

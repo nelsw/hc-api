@@ -4,11 +4,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/model/usps"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"sam-app/pkg/model/usps"
 	"strings"
 )
 

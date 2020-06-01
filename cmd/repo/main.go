@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/client/repo/client"
-	"hc-api/pkg/model/address"
-	"hc-api/pkg/model/offer"
-	"hc-api/pkg/model/password"
-	"hc-api/pkg/model/product"
-	"hc-api/pkg/model/request"
+	"sam-app/pkg/client/repo/client"
+	"sam-app/pkg/model/address"
+	"sam-app/pkg/model/offer"
+	"sam-app/pkg/model/password"
+	"sam-app/pkg/model/product"
+	"sam-app/pkg/model/request"
 	"strings"
 )
 
