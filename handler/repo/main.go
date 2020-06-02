@@ -6,6 +6,7 @@ import (
 	"sam-app/pkg/client/repo/client"
 	"sam-app/pkg/model/credential"
 	"sam-app/pkg/model/product"
+	"sam-app/pkg/model/profile"
 	"sam-app/pkg/model/request"
 	"sam-app/pkg/model/user"
 	"strings"
@@ -18,6 +19,7 @@ var (
 		"*product.Entity":    product.Entity{},
 		"*credential.Entity": credential.Entity{},
 		"*user.Entity":       user.Entity{},
+		"*profile.Entity":    profile.Entity{},
 	}
 )
 
