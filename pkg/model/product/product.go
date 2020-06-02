@@ -1,55 +1,29 @@
 package product
 
 import (
-	"fmt"
 	"os"
-	"sam-app/pkg/model/token"
 )
-
-var (
-	ErrCodeBadName = fmt.Errorf("product name must be at least 2 characters in length")
-)
-
-type Request struct {
-	Op  string   `json:"op"`
-	Ids []string `json:"ids"`
-	token.Value
-	Entity
-}
 
 type Entity struct {
-	Id          string `json:"id"`
-	Sku         string `json:"sku"`
-	Img         string `json:"img"`
-	Category    string `json:"category"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Price       int64  `json:"price"`
-	Other       string `json:"other"`
-
-	AddressId string   `json:"address_id"`
-	OwnerId   string   `json:"owner_id"`
-	ImageSet  []string `json:"image_set"`
-	Quantity  string   `json:"quantity"`
-	Stock     string   `json:"stock"`
-
-	// packaging details (calc shipment rates)
-	Unit string `json:"unit"` // LB
+	Id          string   `json:"id"`
+	Category    string   `json:"category"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Price       int64    `json:"price"`
+	ImageUrls   []string `json:"image_urls"`
+	OwnerId     string   `json:"owner_id"`
+	AddressId   string   `json:"address_id"` // shipping departure location
+	Unit        string   `json:"unit"`       // LB, OZ, etc.
+	Weight      int64    `json:"weight"`
+	Stock       int      `json:"stock"`
 }
 
-var productTable = os.Getenv("PRODUCT_TABLE")
+var table = os.Getenv("TABLE")
 
 func (e *Entity) ID() string {
 	return e.Id
 }
 
 func (*Entity) TableName() string {
-	return productTable
-}
-
-func (e *Entity) Validate() error {
-	if len(e.Name) < 2 {
-		return ErrCodeBadName
-	}
-	return nil
+	return table
 }
