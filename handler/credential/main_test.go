@@ -8,7 +8,7 @@ import (
 )
 
 func TestHandleLogin200(t *testing.T) {
-	credentials := credential.Entity{"hello@gmail.com", "Pass123!"}
+	credentials := credential.Entity{"hello@gmail.com", "Pass123!", ""}
 	b, _ := json.Marshal(&credentials)
 	r := events.APIGatewayProxyRequest{Body: string(b)}
 	if out, _ := Handle(r); out.StatusCode != 200 {
@@ -19,13 +19,31 @@ func TestHandleLogin200(t *testing.T) {
 }
 
 func TestHandleLogin401(t *testing.T) {
-	credentials := credential.Entity{"hello@gmail.com", "Pass1234!"}
+	credentials := credential.Entity{"hello@gmail.com", "Pass1234!", ""}
 	b, _ := json.Marshal(&credentials)
 	r := events.APIGatewayProxyRequest{Body: string(b)}
 	if out, _ := Handle(r); out.StatusCode != 401 {
 		t.Fail()
 	} else {
 		t.Log(out)
+	}
+}
+
+func TestHandleBadRequestUsername(t *testing.T) {
+	credentials := credential.Entity{"foo", "Pass1234!", ""}
+	b, _ := json.Marshal(&credentials)
+	r := events.APIGatewayProxyRequest{Body: string(b)}
+	if out, _ := Handle(r); out.StatusCode != 400 {
+		t.Fail()
+	}
+}
+
+func TestHandleBadRequestPassword(t *testing.T) {
+	credentials := credential.Entity{"hello@gmail.com", "foo", ""}
+	b, _ := json.Marshal(&credentials)
+	r := events.APIGatewayProxyRequest{Body: string(b)}
+	if out, _ := Handle(r); out.StatusCode != 400 {
+		t.Fail()
 	}
 }
 

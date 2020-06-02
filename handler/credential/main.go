@@ -34,7 +34,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	claims := jwt.StandardClaims{
 		ip,
 		0,
-		e.Id,
+		e.UserId,
 		0,
 		"credentialHandler",
 		0,
