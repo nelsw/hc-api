@@ -50,7 +50,6 @@ func Response(i int, vv ...interface{}) (events.APIGatewayProxyResponse, error) 
 			body = string(b)
 		}
 	}
-	r := events.APIGatewayProxyResponse{StatusCode: i, Headers: h, Body: body}
-	fmt.Printf("PROXY RESPONSE [%v]\n", r)
-	return r, nil
+	fmt.Printf("PROXY RESPONSE | CODE=[%d] BODY=[%s]\n", i, body)
+	return events.APIGatewayProxyResponse{StatusCode: i, Headers: h, Body: body}, nil
 }
