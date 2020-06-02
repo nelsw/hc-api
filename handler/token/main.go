@@ -14,10 +14,10 @@ import (
 )
 
 var regex = regexp.MustCompile(`(.*)(token=)(.*)(;.*)`)
-var jwtKey = os.Getenv("JWT_KEY")
+var jwtKey = []byte(os.Getenv("JWT_KEY"))
 
 func keyFunc(_ *jwt.Token) (interface{}, error) {
-	return []byte(jwtKey), nil
+	return jwtKey, nil
 }
 
 func authenticate(token string, claims *jwt.StandardClaims) error {
@@ -36,7 +36,7 @@ func issue(claims *jwt.StandardClaims) string {
 		claims.ExpiresAt = time.Unix(claims.IssuedAt, 0).Add(time.Hour * 24).Unix()
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	str, _ := token.SignedString([]byte(jwtKey))
+	str, _ := token.SignedString(jwtKey)
 	cookie := &http.Cookie{
 		Name:    "token",
 		Value:   str,

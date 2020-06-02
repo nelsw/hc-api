@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/dgrijalva/jwt-go"
+	"sam-app/test"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ func TestHandleAuthorize200(t *testing.T) {
 	claims := jwt.StandardClaims{
 		"Audience Value",
 		0,
-		"Id Value",
+		test.UserId,
 		0,
 		"Issuer Value",
 		0,
@@ -28,7 +29,7 @@ func TestHandleAuthenticate200(t *testing.T) {
 	claims := jwt.StandardClaims{
 		"Audience Value",
 		0,
-		"Id Value",
+		test.UserId,
 		0,
 		"Issuer Value",
 		0,
@@ -49,7 +50,7 @@ func TestHandleInspect200(t *testing.T) {
 	claims := jwt.StandardClaims{
 		"Audience Value",
 		0,
-		"Id Value",
+		test.UserId,
 		0,
 		"Issuer Value",
 		0,
