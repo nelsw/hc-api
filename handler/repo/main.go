@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"sam-app/pkg/client/repo/client"
+	"sam-app/pkg/model/credential"
 	"sam-app/pkg/model/product"
 	"sam-app/pkg/model/request"
 	"strings"
@@ -13,7 +14,8 @@ var (
 	InvalidKeyword = fmt.Errorf("bad keyword")
 	InvalidType    = fmt.Errorf("bad type")
 	typeRegistry   = map[string]interface{}{
-		"*product.Entity": product.Entity{},
+		"*product.Entity":    product.Entity{},
+		"*credential.Entity": credential.Entity{},
 	}
 )
 

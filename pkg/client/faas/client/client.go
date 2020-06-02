@@ -2,12 +2,12 @@ package client
 
 import (
 	"encoding/json"
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"log"
 	"os"
-	"sam-app/pkg/client/faas"
 )
 
 var l *lambda.Lambda
@@ -19,18 +19,6 @@ func init() {
 		log.Fatalf("Failed to connect to AWS: %s", err.Error())
 	} else {
 		l = lambda.New(sess)
-	}
-}
-
-func Invoke(i faas.Functional) ([]byte, error) {
-	payload, _ := json.Marshal(&i)
-	if out, err := l.Invoke(&lambda.InvokeInput{
-		FunctionName: aws.String(i.Function()),
-		Payload:      payload,
-	}); err != nil {
-		return nil, err
-	} else {
-		return out.Payload, nil
 	}
 }
 
@@ -55,5 +43,15 @@ func Call(i interface{}, s string) ([]byte, error) {
 	} else {
 		_ = json.Unmarshal(out.Payload, &err)
 		return out.Payload, err
+	}
+}
+
+func CallIt(r events.APIGatewayProxyRequest, s string) (int, string) {
+	b, _ := json.Marshal(&r)
+	input := lambda.InvokeInput{FunctionName: aws.String(s), Payload: b}
+	if out, err := l.Invoke(&input); err != nil {
+		return 500, err.Error()
+	} else {
+		return int(*out.StatusCode), string(out.Payload)
 	}
 }

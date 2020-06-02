@@ -37,6 +37,16 @@ func FindOne(i Storable) error {
 	}, i)
 }
 
+func FindById(table, id string, i interface{}) error {
+	return do(request.Entity{
+		Table:   table,
+		Id:      id,
+		Keyword: "find-one",
+		Type:    util.TypeOf(i),
+		Result:  i,
+	}, i)
+}
+
 func FindMany(i Storable, ids []string) ([]byte, error) {
 	r := request.Entity{
 		Table:   i.TableName(),
@@ -46,18 +56,6 @@ func FindMany(i Storable, ids []string) ([]byte, error) {
 	}
 	payload, _ := json.Marshal(&r)
 	return client.InvokeRaw(payload, functionName)
-}
-
-func Add(i Storable, ids []string) error {
-	r := request.Entity{
-		Id:      i.ID(),
-		Table:   i.TableName(),
-		Ids:     ids,
-		Keyword: "add " + util.TypeName(i),
-	}
-	payload, _ := json.Marshal(&r)
-	_, err := client.InvokeRaw(payload, functionName)
-	return err
 }
 
 func Remove(i Storable, id string) error {
