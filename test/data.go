@@ -10,6 +10,7 @@ const (
 	ProductId     = "53f2ebcb-1689-11ea-9a91-6a36cd23892f"
 	ProductId1    = ProductId
 	ProductId2    = "0c15864b-1d41-11ea-91cb-164c58ee6eaf"
+	ProductIds    = ProductId1 + "," + ProductId2
 	PasswordId    = "84e5c552-3a40-432a-b5ca-d3ef7a78dee7"
 	PasswordText  = "Pass123!"
 	Ip            = "127.0.0.1"
