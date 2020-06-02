@@ -19,9 +19,7 @@ func TestHandleAuthorize200(t *testing.T) {
 	}
 	b, _ := json.Marshal(&claims)
 	r := events.APIGatewayProxyRequest{Path: "authorize", Body: string(b)}
-	if out, _ := Handle(r); out.StatusCode == 200 {
-		t.Log(out.Body)
-	} else {
+	if out, _ := Handle(r); out.StatusCode != 200 {
 		t.Fail()
 	}
 }
@@ -39,11 +37,8 @@ func TestHandleAuthenticate200(t *testing.T) {
 	b, _ := json.Marshal(&claims)
 	r := events.APIGatewayProxyRequest{Path: "authorize", Body: string(b)}
 	if out, _ := Handle(r); out.StatusCode == 200 {
-		token := out.Body
-		t.Log(token)
-		r = events.APIGatewayProxyRequest{Path: "authenticate", QueryStringParameters: map[string]string{"token": token}}
+		r = events.APIGatewayProxyRequest{Path: "authenticate", QueryStringParameters: map[string]string{"token": out.Body}}
 		if out, _ := Handle(r); out.StatusCode == 200 {
-			t.Log(out.Body)
 			return
 		}
 	}
@@ -63,9 +58,7 @@ func TestHandleInspect200(t *testing.T) {
 	b, _ := json.Marshal(&claims)
 	r := events.APIGatewayProxyRequest{Path: "authorize", Body: string(b)}
 	if out, _ := Handle(r); out.StatusCode == 200 {
-		token := out.Body
-		t.Log(token)
-		r = events.APIGatewayProxyRequest{Path: "inspect", QueryStringParameters: map[string]string{"token": token}}
+		r = events.APIGatewayProxyRequest{Path: "inspect", QueryStringParameters: map[string]string{"token": out.Body}}
 		if out, _ := Handle(r); out.StatusCode == 200 {
 			t.Log(out.Body)
 			return
