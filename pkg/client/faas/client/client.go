@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -46,8 +45,8 @@ func Call(i interface{}, s string) ([]byte, error) {
 	}
 }
 
-func CallIt(r events.APIGatewayProxyRequest, s string) (int, string) {
-	b, _ := json.Marshal(&r)
+func CallIt(i interface{}, s string) (int, string) {
+	b, _ := json.Marshal(&i)
 	input := lambda.InvokeInput{FunctionName: aws.String(s), Payload: b}
 	if out, err := l.Invoke(&input); err != nil {
 		return 500, err.Error()
