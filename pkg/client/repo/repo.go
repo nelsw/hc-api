@@ -8,7 +8,7 @@ import (
 	"sam-app/pkg/util"
 )
 
-const functionName = "hcRepoHandler"
+const functionName = "repoHandler"
 
 type Storable interface {
 	TableName() string
@@ -54,6 +54,17 @@ func Add(i Storable, ids []string) error {
 		Table:   i.TableName(),
 		Ids:     ids,
 		Keyword: "add " + util.TypeName(i),
+	}
+	payload, _ := json.Marshal(&r)
+	_, err := client.InvokeRaw(payload, functionName)
+	return err
+}
+
+func Remove(i Storable, id string) error {
+	r := request.Entity{
+		Id:      id,
+		Table:   i.TableName(),
+		Keyword: "remove",
 	}
 	payload, _ := json.Marshal(&r)
 	_, err := client.InvokeRaw(payload, functionName)
