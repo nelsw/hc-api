@@ -7,6 +7,7 @@ import (
 	"sam-app/pkg/model/credential"
 	"sam-app/pkg/model/product"
 	"sam-app/pkg/model/request"
+	"sam-app/pkg/model/user"
 	"strings"
 )
 
@@ -16,6 +17,7 @@ var (
 	typeRegistry   = map[string]interface{}{
 		"*product.Entity":    product.Entity{},
 		"*credential.Entity": credential.Entity{},
+		"*user.Entity":       user.Entity{},
 	}
 )
 
