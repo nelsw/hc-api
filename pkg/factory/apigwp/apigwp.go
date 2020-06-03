@@ -13,6 +13,24 @@ import (
 var h = map[string]string{"Access-Control-Allow-Origin": "*"}
 var stage = os.Getenv("STAGE")
 
+func body(vv ...interface{}) string {
+	if len(vv) < 1 {
+		return ""
+	}
+	v := vv[0]
+	if b, ok := v.([]byte); ok {
+		return string(b)
+	} else if s, ok := v.(string); ok {
+		return s
+	} else if err, ok := v.(error); ok {
+		return err.Error()
+	} else if b, err := json.Marshal(v); err != nil {
+		return fmt.Sprintf("RESPONSE error, cannot marshal [%v]", v)
+	} else {
+		return string(b)
+	}
+}
+
 func LogRequest(r events.APIGatewayProxyRequest) {
 	fmt.Printf("PROXY REQUEST [%v]\n", r)
 }
@@ -35,21 +53,14 @@ func Request(r events.APIGatewayProxyRequest, i request.Validator) (string, erro
 // Response returns an API Gateway Proxy Response with a nil error to provide detailed status codes and response bodies.
 // While a status code must be provided, further arguments are recognized with reflection but not required.
 func Response(i int, vv ...interface{}) (events.APIGatewayProxyResponse, error) {
-	var body string
-	if len(vv) > 0 {
-		v := vv[0]
-		if b, ok := v.([]byte); ok {
-			body = string(b)
-		} else if s, ok := v.(string); ok {
-			body = s
-		} else if err, ok := v.(error); ok {
-			body = err.Error()
-		} else if b, err := json.Marshal(v); err != nil {
-			body = fmt.Sprintf("RESPONSE error, cannot marshal [%v]", v)
-		} else {
-			body = string(b)
-		}
+	return ProxyResponse(i, h, vv)
+}
+
+func ProxyResponse(i int, headers map[string]string, vv ...interface{}) (events.APIGatewayProxyResponse, error) {
+	for k, v := range h {
+		headers[k] = v
 	}
+	body := body(vv)
 	fmt.Printf("PROXY RESPONSE | CODE=[%d] BODY=[%s]\n", i, body)
-	return events.APIGatewayProxyResponse{StatusCode: i, Headers: h, Body: body}, nil
+	return events.APIGatewayProxyResponse{StatusCode: i, Headers: headers, Body: body}, nil
 }
