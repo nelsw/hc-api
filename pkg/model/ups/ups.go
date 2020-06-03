@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -77,15 +76,15 @@ type Package struct {
 }
 
 type Dimensions struct {
-	Type   NodeType `json:"UnitOfMeasurement"`
-	Length string   `json:"Length"`
-	Width  string   `json:"Width"`
-	Height string   `json:"Height"`
+	DimensionType NodeType `json:"UnitOfMeasurement"`
+	Length        string   `json:"Length"`
+	Width         string   `json:"Width"`
+	Height        string   `json:"Height"`
 }
 
 type WeightNode struct {
-	Type   NodeType `json:"UnitOfMeasurement"`
-	Weight string   `json:"Weight"`
+	WeightType NodeType `json:"UnitOfMeasurement"`
+	Weight     string   `json:"Weight"`
 }
 
 const rateUrl = "https://onlinetools.ups.com/ship/v1/rating/Rate"
@@ -109,15 +108,11 @@ var (
 		"transSrc":            {os.Getenv("UPS_TRANSACTION_SRC")},
 		"Username":            {os.Getenv("UPS_USERNAME")},
 	}
-	nodeLbs    = NodeType{"LBS", "Pounds"}
-	nodeInches = NodeType{"IN", "Inches"}
 )
 
 func GetRates(in PostageRateRequest) (interface{}, error) {
 
 	rates := map[string]map[string]map[string]string{}
-
-	to := ShippingEntity{Address{in.RateRequest.Shipment.ZipTo, "US"}}
 
 	for _, p := range in.Packages {
 
@@ -125,7 +120,7 @@ func GetRates(in PostageRateRequest) (interface{}, error) {
 
 		for k, v := range serviceMap {
 
-			in.RateRequest.Shipment = NewShipment(p, NodeType{k, v})
+			in.RateRequest.Shipment.Package.NodeType = NodeType{k, v}
 
 			out := PostageRateResponse{}
 
@@ -166,19 +161,4 @@ func DoRequest(in PostageRateRequest, out *PostageRateResponse) error {
 	} else {
 		return nil
 	}
-}
-
-// think of shipment as a package
-func NewShipment(p Package, svc NodeType) Shipment {
-	w := WeightNode{nodeLbs, strconv.Itoa(int(p.Weight))}
-	from := ShippingEntity{Address{p.ZipFrom, "US"}}
-	to := ShippingEntity{Address{p.ZipTo, "US"}}
-	d := Dimensions{
-		nodeInches,
-		strconv.Itoa(p.Length),
-		strconv.Itoa(p.Width),
-		strconv.Itoa(p.Height),
-	}
-	tmp := Package{NodeType: svc, Dimensions: d, WeightNode: w}
-	return Shipment{from, to, from, svc, w, tmp}
 }
