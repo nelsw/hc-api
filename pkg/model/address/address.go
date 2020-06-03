@@ -2,18 +2,9 @@ package address
 
 import (
 	"fmt"
-	"os"
-	"sam-app/pkg/model/token"
 	"sam-app/pkg/util"
 	"strings"
 )
-
-type Request struct {
-	Op  string   `json:"op"`
-	Ids []string `json:"ids"`
-	token.Value
-	Entity
-}
 
 type Entity struct {
 	Id     string `json:"id" xml:"ID,attr"`
@@ -25,27 +16,14 @@ type Entity struct {
 	Zip4   string `json:"zip_4,omitempty" xml:"Zip4"`
 }
 
-var (
-	table     = os.Getenv("ADDRESS_TABLE")
-	ErrStreet = fmt.Errorf("bad street\n")
-)
-
-func (*Entity) TableName() string {
-	return table
-}
-
 func (e *Entity) Validate() error {
 	if err := util.ValidateZipCode(e.Zip5); err != nil {
 		return err
 	} else if len(e.Street) < 5 {
-		return ErrStreet
+		return fmt.Errorf("bad street\n")
 	} else {
 		return nil
 	}
-}
-
-func (e *Entity) ID() string {
-	return e.Id
 }
 
 func (e *Entity) String() string {
