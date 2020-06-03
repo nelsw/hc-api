@@ -15,6 +15,18 @@ type Storable interface {
 	ID() string
 }
 
+func Save(table, id string, i interface{}) error {
+	return do(request.Entity{
+		Id:         id,
+		Type:       util.TypeOf(i),
+		Table:      table,
+		Ids:        nil,
+		Attributes: nil,
+		Keyword:    "save",
+		Result:     i,
+	}, i)
+}
+
 func SaveOne(i Storable) error {
 	return do(request.Entity{
 		Id:         i.ID(),
@@ -45,6 +57,17 @@ func FindById(table, id string, i interface{}) error {
 		Type:    util.TypeOf(i),
 		Result:  i,
 	}, i)
+}
+
+func FindByIds(table string, i interface{}, ids []string) ([]byte, error) {
+	r := request.Entity{
+		Table:   table,
+		Ids:     ids,
+		Keyword: "find-many",
+		Type:    util.TypeOf(i),
+	}
+	payload, _ := json.Marshal(&r)
+	return client.InvokeRaw(payload, functionName)
 }
 
 func FindMany(i Storable, ids []string) ([]byte, error) {
