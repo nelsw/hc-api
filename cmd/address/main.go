@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"os"
 	"sam-app/pkg/client/faas/client"
 	"sam-app/pkg/client/repo"
 	"sam-app/pkg/factory/apigwp"
 	"sam-app/pkg/model/address"
 )
+
+var table = os.Getenv("TABLE")
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
