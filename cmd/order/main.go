@@ -1,54 +1,56 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"hc-api/pkg/client/faas/client"
-	"hc-api/pkg/client/repo"
-	"hc-api/pkg/factory/apigwp"
-	"hc-api/pkg/model/order"
-	"hc-api/pkg/util"
+	"github.com/google/uuid"
+	"os"
+	"sam-app/pkg/client/faas/client"
+	"sam-app/pkg/client/repo"
+	"sam-app/pkg/factory/apigwp"
+	"sam-app/pkg/model/order"
+	"sam-app/pkg/util"
 	"strings"
 	"sync"
 )
 
 var vs = []string{"UPS", "USPS", "FEDEX"}
+var table = os.Getenv("TABLE")
 
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-
-	var request order.Request
-
-	ip, err := apigwp.Request(r, &request)
-	if err != nil {
+	apigwp.LogRequest(r)
+	var e order.Entity
+	if err := json.Unmarshal([]byte(r.Body), &e); err != nil {
 		return apigwp.Response(400, err)
 	}
 
-	request.SourceIp = ip
-
-	if out, err := client.Call(request, "hcTokenHandler"); err != nil {
-		return apigwp.Response(500, err)
-	} else {
-		_ = json.Unmarshal(out, &request)
-		if len(request.JwtSlice) < 1 {
-			return apigwp.Response(402)
-		}
+	tknRequest := events.APIGatewayProxyRequest{
+		Path: "authenticate",
+		QueryStringParameters: map[string]string{
+			"token": r.QueryStringParameters["token"],
+		},
 	}
 
-	switch request.Op {
+	if code, body := client.CallIt(tknRequest, "tokenHandler"); code != 200 {
+		return apigwp.Response(code, body)
+	}
+
+	switch r.Path {
 
 	case "find-by-ids":
-		if out, err := repo.FindMany(&request, request.Ids); err != nil {
+		if csv, ok := r.QueryStringParameters["ids"]; !ok {
+			return apigwp.Response(400, fmt.Printf("bad qsp for ids [%s]", csv))
+		} else if out, err := repo.FindByIds(table, e, strings.Split(csv, ",")); err != nil {
 			return apigwp.Response(400, err)
 		} else {
 			return apigwp.Response(200, &out)
 		}
 
 	case "calc-rates":
-		//request.PackageIds = make([]string, len(request.Packages))
 
-		for i, p := range request.Packages {
+		for i, p := range e.Packages {
 
 			if p.Id == "" {
 				continue
@@ -62,12 +64,12 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			p.ZipOrigination = util.ZipFromAddressId(p.AddressId)
 			p.ShipperStateCode = util.StateFromAddressId(p.AddressId)
 
-			p.ZipDestination = util.ZipFromAddressId(request.AddressId)
-			p.RecipientStateCode = util.StateFromAddressId(request.AddressId)
+			p.ZipDestination = util.ZipFromAddressId(e.AddressId)
+			p.RecipientStateCode = util.StateFromAddressId(e.AddressId)
 
-			request.Packages[i] = p
+			e.Packages[i] = p
 
-			orders := make(chan order.Entity)
+			ratesChan := make(chan order.Package)
 
 			var wg sync.WaitGroup
 			wg.Add(len(vs))
@@ -78,29 +80,25 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 					defer wg.Done()
 
-					//proxy.Invoke()
 					//err := pkg.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
 					//if err != nil {
 					//	log.Println(err)
 					//}
 
-					orders <- request
+					ratesChan <- p
 				}(v)
 			}
 
-			rates := map[string]map[string]map[string]string{}
+			rates := map[string]map[string]map[string]interface{}{}
 
 			go func() {
 
-				for o := range orders {
+				for p := range ratesChan {
 
-					for k, v := range o.Rates {
-
-						if _, m := rates[k]; m {
-							rates[k][o.Vendor] = v[o.Vendor]
-						} else {
-							rates[k] = v
-						}
+					if _, ok := rates[p.Id]; ok {
+						rates[p.Id][p.ShipVendor] = map[string]interface{}{p.ShipService: p.ShipRate}
+					} else {
+						rates[p.Id] = map[string]map[string]interface{}{p.ShipVendor: {p.ShipService: p.ShipRate}}
 					}
 				}
 			}()
@@ -112,17 +110,25 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "save-order":
 		// sum all packages
-		for _, p := range request.Packages {
-			request.OrderSum += p.ProductPrice + p.ShipRate
+		for _, p := range e.Packages {
+			e.OrderSum += p.ProductPrice + p.ShipRate
 		}
 
-		if err := repo.SaveOne(&request.Entity); err != nil {
+		s, _ := uuid.NewUUID()
+		e.Id = s.String()
+		if err := repo.Save(table, e.Id, &e); err != nil {
 			return apigwp.Response(500, err)
 			//} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
 			//	return apigwp.Response(500, err)
-		} else {
-			return apigwp.Response(200)
 		}
+
+		userId := "" // need to grab from jwt
+		ur1 := map[string]interface{}{"op": "add", "id": userId, "ids": []string{e.Id}, "keyword": "add order_ids"}
+		if _, err := client.Call(ur1, "hcUserHandler"); err != nil {
+			return apigwp.Response(500, err)
+		}
+
+		return apigwp.Response(200)
 	}
 
 	return apigwp.Response(400)
