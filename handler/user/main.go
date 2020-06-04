@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/dgrijalva/jwt-go"
 	"os"
 	"sam-app/pkg/client/faas/client"
 	"sam-app/pkg/factory/apigwp"
@@ -18,43 +16,25 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	apigwp.LogRequest(r)
 	if r.Path != "add" && r.Path != "delete" {
 		return apigwp.Response(400, fmt.Errorf("bad path [%s]", r.Path))
-	} else if token, ok := r.QueryStringParameters["token"]; !ok {
-		return apigwp.Response(400, fmt.Errorf("no token provided"))
+	} else if token, ok := r.Headers["token"]; !ok {
+		return apigwp.Response(400, fmt.Errorf("no token"))
+	} else if id, ok := r.QueryStringParameters["id"]; !ok {
+		return apigwp.Response(400, fmt.Errorf("no id"))
 	} else if csv, ok := r.QueryStringParameters["ids"]; !ok {
-		return apigwp.Response(400, fmt.Errorf("no ids provided"))
+		return apigwp.Response(400, fmt.Errorf("no ids"))
 	} else if col, ok := r.QueryStringParameters["col"]; !ok {
-		return apigwp.Response(400, fmt.Errorf("no col provided"))
+		return apigwp.Response(400, fmt.Errorf("no col"))
 	} else {
 
-		keyword := r.Path + " " + col
-		inspection := events.APIGatewayProxyRequest{
-			Path:                  "inspect",
-			QueryStringParameters: map[string]string{"token": token},
-		}
-		code, body := client.CallIt(inspection, "tokenHandler")
-		if code != 200 {
-			return apigwp.Response(code, body)
-		}
-
-		response := events.APIGatewayProxyResponse{}
-		_ = json.Unmarshal([]byte(body), &response)
-
-		if response.StatusCode != 200 {
-			return apigwp.Response(response.StatusCode, response.Body)
-		}
-
-		claims := jwt.StandardClaims{}
-		if err := json.Unmarshal([]byte(response.Body), &claims); err != nil {
+		authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
+		if err := client.Invoke("tokenHandler", authenticate, &token); err != nil {
 			return apigwp.Response(400, err)
 		}
+		r.Headers["Authorize"] = token
 
+		keyword := r.Path + " " + col
 		ids := strings.Split(csv, ",")
-		m := map[string]interface{}{
-			"table":   table,
-			"id":      claims.Id,
-			"ids":     ids,
-			"keyword": keyword,
-		}
+		m := map[string]interface{}{"table": table, "id": id, "ids": ids, "keyword": keyword}
 		return apigwp.Response(client.CallIt(&m, "repoHandler"))
 	}
 }

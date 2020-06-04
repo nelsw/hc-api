@@ -34,19 +34,6 @@ func InvokeRaw(b []byte, s string) ([]byte, error) {
 	}
 }
 
-func Call(i interface{}, s string) ([]byte, error) {
-	b, _ := json.Marshal(&i)
-	if out, err := l.Invoke(&lambda.InvokeInput{
-		FunctionName: aws.String(s),
-		Payload:      b,
-	}); err != nil {
-		return nil, err
-	} else {
-		_ = json.Unmarshal(out.Payload, &err)
-		return out.Payload, err
-	}
-}
-
 func CallIt(i interface{}, s string) (int, string) {
 	b, _ := json.Marshal(&i)
 	input := lambda.InvokeInput{FunctionName: aws.String(s), Payload: b}
@@ -67,9 +54,9 @@ func Invoke(f string, i interface{}, o interface{}) error {
 		return err
 	} else if r.StatusCode != 200 {
 		return fmt.Errorf(r.Body)
-	} else if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
-		return err
-	} else {
+	} else if o == nil {
 		return nil
+	} else {
+		return json.Unmarshal([]byte(r.Body), &o)
 	}
 }

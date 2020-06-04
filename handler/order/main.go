@@ -35,15 +35,12 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	apigwp.LogRequest(r)
 
-	if token, ok := r.Headers["Authorize"]; !ok {
-		return apigwp.Response(400, "missing token")
-	} else {
-		authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: map[string]string{"token": token}}
-		if err := client.Invoke("tokenHandler", authenticate, &token); err != nil {
-			return apigwp.Response(400, err)
-		}
-		r.Headers["Authorize"] = token
+	var token string
+	authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
+	if err := client.Invoke("tokenHandler", authenticate, &token); err != nil {
+		return apigwp.Response(401, err)
 	}
+	r.Headers["Authorize"] = token
 
 	e := order.Entity{}
 
@@ -51,7 +48,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "find-by-ids":
 		if csv, ok := r.QueryStringParameters["ids"]; !ok {
-			return apigwp.Response(400, "bad qsp for ids")
+			return apigwp.Response(400, "no ids")
 		} else if out, err := repo.FindByIds(table, e, strings.Split(csv, ",")); err != nil {
 			return apigwp.Response(400, err)
 		} else {
@@ -137,12 +134,14 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		e.Id = s.String()
 		if err := repo.Save(table, e.Id, &e); err != nil {
 			return apigwp.Response(500, err)
-			//} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
-			//	return apigwp.Response(500, err)
 		}
 
-		ur1 := map[string]interface{}{"op": "add", "id": id, "ids": []string{e.Id}, "keyword": "add order_ids"}
-		if _, err := client.Call(ur1, "hcUserHandler"); err != nil {
+		add := events.APIGatewayProxyRequest{
+			Path:                  "add",
+			Headers:               r.Headers,
+			QueryStringParameters: map[string]string{"id": id, "ids": e.Id, "col": "orders"},
+		}
+		if err := client.Invoke("userHandler", add, nil); err != nil {
 			return apigwp.Response(500, err)
 		}
 
