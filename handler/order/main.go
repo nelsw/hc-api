@@ -1,17 +1,18 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/google/uuid"
+	"log"
 	"os"
 	"sam-app/pkg/client/faas/client"
 	"sam-app/pkg/client/repo"
 	"sam-app/pkg/factory/apigwp"
 	"sam-app/pkg/model/order"
-	"sam-app/pkg/util"
 	"strings"
 	"sync"
 )
@@ -19,23 +20,33 @@ import (
 var vs = []string{"UPS", "USPS", "FEDEX"}
 var table = os.Getenv("TABLE")
 
+func zipFromAddressId(s string) string {
+	add, _ := base64.StdEncoding.DecodeString(s)
+	csv := strings.Split(string(add), ", ")
+	return strings.Split(csv[len(csv)-2], "-")[0]
+}
+
+func stateFromAddressId(s string) string {
+	add, _ := base64.StdEncoding.DecodeString(s)
+	csv := strings.Split(string(add), ", ")
+	return csv[len(csv)-3]
+}
+
 func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
 	apigwp.LogRequest(r)
-	var e order.Entity
-	if err := json.Unmarshal([]byte(r.Body), &e); err != nil {
-		return apigwp.Response(400, err)
+
+	if token, ok := r.Headers["Authorize"]; !ok {
+		return apigwp.Response(400, "missing token")
+	} else {
+		authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: map[string]string{"token": token}}
+		if err := client.Invoke("tokenHandler", authenticate, &token); err != nil {
+			return apigwp.Response(400, err)
+		}
+		r.Headers["Authorize"] = token
 	}
 
-	tknRequest := events.APIGatewayProxyRequest{
-		Path: "authenticate",
-		QueryStringParameters: map[string]string{
-			"token": r.QueryStringParameters["token"],
-		},
-	}
-
-	if code, body := client.CallIt(tknRequest, "tokenHandler"); code != 200 {
-		return apigwp.Response(code, body)
-	}
+	e := order.Entity{}
 
 	switch r.Path {
 
@@ -50,6 +61,10 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "calc-rates":
 
+		if err := json.Unmarshal([]byte(r.Body), &e); err != nil {
+			return apigwp.Response(400, err)
+		}
+
 		for i, p := range e.Packages {
 
 			if p.Id == "" {
@@ -61,11 +76,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			p.TotalHeight = p.ProductHeight * p.ProductQty
 			p.TotalWidth = p.ProductWidth * p.ProductQty
 
-			p.ZipOrigination = util.ZipFromAddressId(p.AddressId)
-			p.ShipperStateCode = util.StateFromAddressId(p.AddressId)
+			p.ZipOrigination = zipFromAddressId(p.AddressId)
+			p.ShipperStateCode = stateFromAddressId(p.AddressId)
 
-			p.ZipDestination = util.ZipFromAddressId(e.AddressId)
-			p.RecipientStateCode = util.StateFromAddressId(e.AddressId)
+			p.ZipDestination = zipFromAddressId(e.AddressId)
+			p.RecipientStateCode = stateFromAddressId(e.AddressId)
 
 			e.Packages[i] = p
 
@@ -80,10 +95,10 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 					defer wg.Done()
 
-					//err := pkg.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
-					//if err != nil {
-					//	log.Println(err)
-					//}
+					err := pkg.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
+					if err != nil {
+						log.Println(err)
+					}
 
 					ratesChan <- p
 				}(v)
@@ -109,8 +124,13 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}
 
 	case "save-order":
-		// sum all packages
-		for _, p := range e.Packages {
+
+		id, ok := r.QueryStringParameters["id"]
+		if !ok {
+			return apigwp.Response(400, "no id provided")
+		}
+
+		for _, p := range e.Packages { // sum all packages
 			e.OrderSum += p.ProductPrice + p.ShipRate
 		}
 
@@ -118,12 +138,11 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		e.Id = s.String()
 		if err := repo.Save(table, e.Id, &e); err != nil {
 			return apigwp.Response(500, err)
-			//} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
-			//	return apigwp.Response(500, err)
+		} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
+			return apigwp.Response(500, err)
 		}
 
-		userId := "" // need to grab from jwt
-		ur1 := map[string]interface{}{"op": "add", "id": userId, "ids": []string{e.Id}, "keyword": "add order_ids"}
+		ur1 := map[string]interface{}{"op": "add", "id": id, "ids": []string{e.Id}, "keyword": "add order_ids"}
 		if _, err := client.Call(ur1, "hcUserHandler"); err != nil {
 			return apigwp.Response(500, err)
 		}
@@ -131,7 +150,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return apigwp.Response(200)
 	}
 
-	return apigwp.Response(400)
+	return apigwp.Response(400, fmt.Errorf("nothing returned for [%v].\n", r))
 }
 
 func main() {

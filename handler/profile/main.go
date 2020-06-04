@@ -15,7 +15,6 @@ import (
 	"sam-app/pkg/client/faas/client"
 	"sam-app/pkg/factory/apigwp"
 	"sam-app/pkg/model/profile"
-	"sam-app/pkg/util"
 )
 
 var table = os.Getenv("TABLE")
@@ -61,7 +60,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		m := map[string]interface{}{
 			"id":      claims.Id,
 			"table":   table,
-			"type":    util.TypeOf(e),
+			"type":    "*profile.Entity",
 			"keyword": "save",
 			"result":  &e,
 		}

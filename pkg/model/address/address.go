@@ -2,7 +2,7 @@ package address
 
 import (
 	"fmt"
-	"sam-app/pkg/util"
+	"strconv"
 	"strings"
 )
 
@@ -17,7 +17,7 @@ type Entity struct {
 }
 
 func (e *Entity) Validate() error {
-	if err := util.ValidateZipCode(e.Zip5); err != nil {
+	if _, err := strconv.Atoi(e.Zip5); err != nil || len(e.Zip5) < 5 {
 		return err
 	} else if len(e.Street) < 5 {
 		return fmt.Errorf("bad street\n")
