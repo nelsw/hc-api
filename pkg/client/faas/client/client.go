@@ -2,6 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -52,5 +54,22 @@ func CallIt(i interface{}, s string) (int, string) {
 		return 500, err.Error()
 	} else {
 		return int(*out.StatusCode), string(out.Payload)
+	}
+}
+
+func Invoke(f string, i interface{}, o interface{}) error {
+	r := events.APIGatewayProxyResponse{}
+	if b, err := json.Marshal(&i); err != nil {
+		return err
+	} else if output, err := l.Invoke(&lambda.InvokeInput{FunctionName: aws.String(f), Payload: b}); err != nil {
+		return err
+	} else if err := json.Unmarshal(output.Payload, &r); err != nil {
+		return err
+	} else if r.StatusCode != 200 {
+		return fmt.Errorf(r.Body)
+	} else if err := json.Unmarshal([]byte(r.Body), &o); err != nil {
+		return err
+	} else {
+		return nil
 	}
 }
