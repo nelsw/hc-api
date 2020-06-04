@@ -53,7 +53,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	switch r.Path {
 
 	case "authenticate":
-		if token, ok := r.QueryStringParameters["token"]; ok {
+		if token, ok := r.Headers["token"]; ok {
 			tokenString := regex.ReplaceAllString(token, `$3`)
 			claims := jwt.StandardClaims{}
 			if err := authenticate(tokenString, &claims); err != nil {
@@ -71,7 +71,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return apigwp.Response(200, map[string]string{"Authorize": token}, &token)
 
 	case "inspect":
-		if token, ok := r.QueryStringParameters["token"]; ok {
+		if token, ok := r.Headers["token"]; ok {
 			tokenString := regex.ReplaceAllString(token, `$3`)
 			claims := jwt.StandardClaims{}
 			if err := authenticate(tokenString, &claims); err != nil {
