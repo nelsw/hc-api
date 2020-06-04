@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/google/uuid"
-	"log"
 	"os"
 	"sam-app/pkg/client/faas/client"
 	"sam-app/pkg/client/repo"
@@ -52,7 +51,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	case "find-by-ids":
 		if csv, ok := r.QueryStringParameters["ids"]; !ok {
-			return apigwp.Response(400, fmt.Printf("bad qsp for ids [%s]", csv))
+			return apigwp.Response(400, "bad qsp for ids")
 		} else if out, err := repo.FindByIds(table, e, strings.Split(csv, ",")); err != nil {
 			return apigwp.Response(400, err)
 		} else {
@@ -95,10 +94,10 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 					defer wg.Done()
 
-					err := pkg.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
-					if err != nil {
-						log.Println(err)
-					}
+					//err := pkg.Invoke().Handler("Shipping").QSP("cmd", "rate").QSP("v", v).Body(o).Marshal(&o)
+					//if err != nil {
+					//	log.Println(err)
+					//}
 
 					ratesChan <- p
 				}(v)
@@ -138,8 +137,8 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		e.Id = s.String()
 		if err := repo.Save(table, e.Id, &e); err != nil {
 			return apigwp.Response(500, err)
-		} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
-			return apigwp.Response(500, err)
+			//} else if err := repo.Update(&user, "add order_ids :p"); err != nil {
+			//	return apigwp.Response(500, err)
 		}
 
 		ur1 := map[string]interface{}{"op": "add", "id": id, "ids": []string{e.Id}, "keyword": "add order_ids"}
