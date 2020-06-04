@@ -67,7 +67,8 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		if err := json.Unmarshal([]byte(r.Body), &claims); err != nil {
 			return apigwp.Response(400, err)
 		}
-		return apigwp.Response(200, issue(&claims))
+		token := issue(&claims)
+		return apigwp.Response(200, map[string]string{"Authorize": token}, &token)
 
 	case "inspect":
 		if token, ok := r.QueryStringParameters["token"]; ok {
@@ -76,7 +77,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			if err := authenticate(tokenString, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
-			return apigwp.Response(200, &claims)
+			return apigwp.Response(200, map[string]string{"Authorize": issue(&claims)}, &claims)
 		}
 	}
 
