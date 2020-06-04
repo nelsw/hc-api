@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"sam-app/pkg/client/repo/client"
+	"sam-app/pkg/model/address"
 	"sam-app/pkg/model/credential"
 	"sam-app/pkg/model/product"
 	"sam-app/pkg/model/profile"
@@ -12,16 +13,13 @@ import (
 	"strings"
 )
 
-var (
-	InvalidKeyword = fmt.Errorf("bad keyword")
-	InvalidType    = fmt.Errorf("bad type")
-	typeRegistry   = map[string]interface{}{
-		"*product.Entity":    product.Entity{},
-		"*credential.Entity": credential.Entity{},
-		"*user.Entity":       user.Entity{},
-		"*profile.Entity":    profile.Entity{},
-	}
-)
+var typeRegistry = map[string]interface{}{
+	"*product.Entity":    product.Entity{},
+	"*credential.Entity": credential.Entity{},
+	"*user.Entity":       user.Entity{},
+	"*profile.Entity":    profile.Entity{},
+	"*address.Entity":    address.Entity{},
+}
 
 func logRequest(i interface{}) {
 	fmt.Printf("REQUEST value=[%v]\n", i)
@@ -52,7 +50,7 @@ func Handle(r request.Entity) (interface{}, error) {
 
 		i, ok := typeRegistry[r.Type]
 		if !ok {
-			return logResponse(nil, InvalidType)
+			return logResponse(nil, fmt.Errorf("bad type"))
 		}
 
 		switch r.Keyword {
@@ -80,7 +78,7 @@ func Handle(r request.Entity) (interface{}, error) {
 		}
 	}
 
-	return logResponse(nil, InvalidKeyword)
+	return logResponse(nil, fmt.Errorf("bad keyword"))
 }
 
 func main() {
