@@ -6,6 +6,7 @@ import (
 	"sam-app/pkg/client/repo/client"
 	"sam-app/pkg/model/address"
 	"sam-app/pkg/model/credential"
+	"sam-app/pkg/model/order"
 	"sam-app/pkg/model/product"
 	"sam-app/pkg/model/profile"
 	"sam-app/pkg/model/request"
@@ -19,6 +20,7 @@ var typeRegistry = map[string]interface{}{
 	"*user.Entity":       user.Entity{},
 	"*profile.Entity":    profile.Entity{},
 	"*address.Entity":    address.Entity{},
+	"*order.Entity":      order.Entity{},
 }
 
 func logRequest(i interface{}) {
