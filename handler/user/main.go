@@ -27,16 +27,17 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	} else {
 
 		authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
-		if code, body := client.CallIt(authenticate, "tokenHandler"); code != 200 {
-			return apigwp.Response(code, body)
+		if authResponse := client.Invoke("tokenHandler", authenticate); authResponse.StatusCode != 200 {
+			return apigwp.Response(401, authResponse.Body)
 		} else {
-			r.Headers["Authorize"] = body
+			r.Headers = authResponse.Headers
 		}
 
 		keyword := r.Path + " " + col
 		ids := strings.Split(csv, ",")
-		m := map[string]interface{}{"table": table, "id": id, "ids": ids, "keyword": keyword}
-		return apigwp.Response(client.CallIt(&m, "repoHandler"))
+		m := map[string]interface{}{"table": table, "id": id, "ids": ids, "keyword": keyword, "type": "*user.Entity"}
+		code, body := client.CallIt(&m, "repoHandler")
+		return apigwp.ProxyResponse(code, r.Headers, body)
 	}
 }
 
