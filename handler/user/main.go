@@ -16,7 +16,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	apigwp.LogRequest(r)
 	if r.Path != "add" && r.Path != "delete" {
 		return apigwp.Response(400, fmt.Errorf("bad path [%s]", r.Path))
-	} else if token, ok := r.Headers["token"]; !ok {
+	} else if _, ok := r.Headers["Authorization"]; !ok {
 		return apigwp.Response(400, fmt.Errorf("no token"))
 	} else if id, ok := r.QueryStringParameters["id"]; !ok {
 		return apigwp.Response(400, fmt.Errorf("no id"))
