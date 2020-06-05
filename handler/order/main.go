@@ -36,13 +36,14 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	apigwp.LogRequest(r)
 
 	authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
-	if code, body := client.CallIt(authenticate, "tokenHandler"); code != 200 {
-		return apigwp.Response(code, body)
+	if authResponse := client.Invoke("tokenHandler", authenticate); authResponse.StatusCode != 200 {
+		return apigwp.Response(401, authResponse.Body)
 	} else {
-		r.Headers["Authorize"] = body
+		r.Headers = authResponse.Headers
 	}
 
 	e := order.Entity{}
+	_ = json.Unmarshal([]byte(r.Body), &e)
 
 	switch r.Path {
 
@@ -55,7 +56,7 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return apigwp.Response(200, &out)
 		}
 
-	case "calc-rates":
+	case "rates":
 
 		if err := json.Unmarshal([]byte(r.Body), &e); err != nil {
 			return apigwp.Response(400, err)
@@ -119,30 +120,24 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return apigwp.Response(200, &rates)
 		}
 
-	case "save-order":
-
-		id, ok := r.QueryStringParameters["id"]
-		if !ok {
-			return apigwp.Response(400, "no id provided")
-		}
+	case "save":
 
 		for _, p := range e.Packages { // sum all packages
 			e.OrderSum += p.ProductPrice + p.ShipRate
 		}
 
-		s, _ := uuid.NewUUID()
-		e.Id = s.String()
-		if err := repo.Save(table, e.Id, &e); err != nil {
+		ids := uuid.New().String()
+		if err := repo.Save(table, ids, &e); err != nil {
 			return apigwp.Response(500, err)
 		}
 
 		add := events.APIGatewayProxyRequest{
 			Path:                  "add",
 			Headers:               r.Headers,
-			QueryStringParameters: map[string]string{"id": id, "ids": e.Id, "col": "orders"},
+			QueryStringParameters: map[string]string{"id": e.UserId, "ids": ids, "col": "orders", "keyword": "add"},
 		}
-		if err := client.Invoke("userHandler", add, nil); err != nil {
-			return apigwp.Response(500, err)
+		if repoResponse := client.Invoke("userHandler", add); repoResponse.StatusCode != 200 {
+			return apigwp.Response(500, repoResponse.Body)
 		}
 
 		return apigwp.Response(200)
