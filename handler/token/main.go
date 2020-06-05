@@ -59,7 +59,8 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			if err := authenticate(tokenString, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
-			return apigwp.Response(200, issue(&claims))
+			newToken := issue(&claims)
+			return apigwp.ProxyResponse(200, map[string]string{"Authorize": token}, newToken)
 		}
 
 	case "authorize":
@@ -68,7 +69,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			return apigwp.Response(400, err)
 		}
 		token := issue(&claims)
-		return apigwp.Response(200, map[string]string{"Authorize": token}, &token)
+		return apigwp.ProxyResponse(200, map[string]string{"Authorize": token}, &token)
 
 	case "inspect":
 		if token, ok := r.Headers["Authorize"]; ok {
@@ -77,7 +78,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			if err := authenticate(tokenString, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
-			return apigwp.Response(200, map[string]string{"Authorize": issue(&claims)}, &claims)
+			return apigwp.ProxyResponse(200, map[string]string{"Authorize": issue(&claims)}, &claims)
 		}
 	}
 
