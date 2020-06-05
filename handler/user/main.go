@@ -27,10 +27,11 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	} else {
 
 		authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
-		if err := client.Invoke("tokenHandler", authenticate, &token); err != nil {
-			return apigwp.Response(400, err)
+		if code, body := client.CallIt(authenticate, "tokenHandler"); code != 200 {
+			return apigwp.Response(code, body)
+		} else {
+			r.Headers["Authorize"] = body
 		}
-		r.Headers["Authorize"] = token
 
 		keyword := r.Path + " " + col
 		ids := strings.Split(csv, ",")

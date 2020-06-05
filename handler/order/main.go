@@ -35,21 +35,21 @@ func HandleRequest(r events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	apigwp.LogRequest(r)
 
-	var token string
 	authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
-	if err := client.Invoke("tokenHandler", authenticate, &token); err != nil {
-		return apigwp.Response(401, err)
+	if code, body := client.CallIt(authenticate, "tokenHandler"); code != 200 {
+		return apigwp.Response(code, body)
+	} else {
+		r.Headers["Authorize"] = body
 	}
-	r.Headers["Authorize"] = token
 
 	e := order.Entity{}
 
 	switch r.Path {
 
-	case "find-by-ids":
+	case "find":
 		if csv, ok := r.QueryStringParameters["ids"]; !ok {
 			return apigwp.Response(400, "no ids")
-		} else if out, err := repo.FindByIds(table, e, strings.Split(csv, ",")); err != nil {
+		} else if out, err := repo.FindByIds(table, &e, strings.Split(csv, ",")); err != nil {
 			return apigwp.Response(400, err)
 		} else {
 			return apigwp.Response(200, &out)
