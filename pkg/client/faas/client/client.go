@@ -22,17 +22,6 @@ func init() {
 	}
 }
 
-func InvokeRaw(b []byte, s string) ([]byte, error) {
-	if out, err := l.Invoke(&lambda.InvokeInput{
-		FunctionName: aws.String(s),
-		Payload:      b,
-	}); err != nil {
-		return nil, err
-	} else {
-		return out.Payload, nil
-	}
-}
-
 func CallIt(i interface{}, s string) (int, string) {
 	b, _ := json.Marshal(&i)
 	input := lambda.InvokeInput{FunctionName: aws.String(s), Payload: b}
@@ -44,17 +33,17 @@ func CallIt(i interface{}, s string) (int, string) {
 }
 
 func Invoke(f string, i interface{}) events.APIGatewayProxyResponse {
-	r := events.APIGatewayProxyResponse{}
-	if b, err := json.Marshal(&i); err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500, Body: err.Error()}
-	} else if output, err := l.Invoke(&lambda.InvokeInput{FunctionName: aws.String(f), Payload: b}); err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500, Body: err.Error()}
+	r := events.APIGatewayProxyResponse{StatusCode: 500}
+	b, _ := json.Marshal(&i)
+	if output, err := l.Invoke(&lambda.InvokeInput{FunctionName: aws.String(f), Payload: b}); err != nil {
+		r.Body = err.Error()
 	} else if *output.StatusCode != 200 {
-		return events.APIGatewayProxyResponse{StatusCode: 500, Body: string(output.Payload)}
+		r.Body = string(output.Payload)
 	} else if err := json.Unmarshal(output.Payload, &r); err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500, Body: err.Error()}
+		r.Body = err.Error()
 	} else {
-		return r
+		_ = json.Unmarshal([]byte(r.Body), &r) // try it again jic
+		r.StatusCode = 200
 	}
-
+	return r
 }
