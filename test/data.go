@@ -1,14 +1,12 @@
 package test
 
 const (
-	AddressId     = "NTkxIEVWRVJOSUEgU1QsIEFQVCAxNzA1LCBXRVNUIFBBTE0gQkVBQ0gsIEZMLCAzMzQwMS01Nzg0LCBVbml0ZWQgU3RhdGVz"
-	CookieValid   = "acc-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiIxMjcuMC4wLjEiLCJleHAiOjE1ODEwNDk4NDEsImp0aSI6IjYzOGIxM2VmLWFiODQtNDEwYS1hYmIwLWM5ZmQ1ZGE0NWM2MiIsImlhdCI6MTU4MDk2MzQ0MSwic3ViIjoiYXV0aG9yaXplIn0.FSU0W46_F3OWjkmaU1JqXmn6Oc17t6YqLvqrJVOspTU; Expires=Fri, 11 May 2020 07:20:41 GMT"
-	CookieExpired = "acc-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiIxMjcuMC4wLjEiLCJleHAiOjE1ODAzMjA5OTUsImp0aSI6IjYzOGIxM2VmLWFiODQtNDEwYS1hYmIwLWM5ZmQ1ZGE0NWM2MiIsImlhdCI6MTU4MDIzNDU5NSwic3ViIjoiYXV0aG9yaXplIn0._1UKrWVQ-Em4orBatu5GjP6VUSoyeSLLOTtm6lG0Cfo; Expires=Wed, 29 Jan 2020 18:03:15 GMT"
-	UserId        = "2f6a7f3f-a469-11ea-a61b-767e0e85b995"
-	ProfileId     = "df3d6542-c828-49e9-a62c-cb6e67d5d730"
-	ProductId     = "53f2ebcb-1689-11ea-9a91-6a36cd23892f"
-	ProductId1    = ProductId
-	ProductId2    = "0c15864b-1d41-11ea-91cb-164c58ee6eaf"
-	ProductIds    = ProductId1 + "," + ProductId2
-	Ip            = "127.0.0.1"
+	AddressId   = "NTkxIEVWRVJOSUEgU1QsIEFQVCAxNzA1LCBXRVNUIFBBTE0gQkVBQ0gsIEZMLCAzMzQwMS01Nzg0LCBVbml0ZWQgU3RhdGVz"
+	CookieValid = "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJBdWRpZW5jZSBWYWx1ZSIsImV4cCI6MTU5MjU5NTY4OSwianRpIjoiMmY2YTdmM2YtYTQ2OS0xMWVhLWE2MWItNzY3ZTBlODViOTk1IiwiaWF0IjoxNTkyNTA5Mjg5LCJpc3MiOiJJc3N1ZXIgVmFsdWUiLCJzdWIiOiJTdWJqZWN0IFZhbHVlIn0.GmghbZUf1sbQfal_if71VnF_HbCO6giNI-91ivkmigk; Expires=Fri, 19 Jun 2020 19:41:29 GMT"
+	UserId      = "2f6a7f3f-a469-11ea-a61b-767e0e85b995"
+	ProductId   = "53f2ebcb-1689-11ea-9a91-6a36cd23892f"
+	ProductId1  = ProductId
+	ProductId2  = "0c15864b-1d41-11ea-91cb-164c58ee6eaf"
+	ProductIds  = ProductId1 + "," + ProductId2
+	OrderIds    = "44ace621-a46e-11ea-8817-2e51bfe26708,bb5a147c-a46b-11ea-b72e-365a3e9d7040"
 )
