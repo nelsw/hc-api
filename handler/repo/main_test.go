@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sam-app/pkg/model/credential"
+	"sam-app/pkg/model/request"
 	"testing"
 )
 
@@ -47,23 +49,23 @@ import (
 //		t.Log(out)
 //	}
 //}
-//
-//func TestFindOne200(t *testing.T) {
-//	e := product.Entity{}
-//	r := request.Entity{
-//		Id:      test.ProductId,
-//		Type:    util.TypeOf(&e),
-//		Table:   e.TableName(),
-//		Keyword: "find-one",
-//		Result:  &e,
-//	}
-//	if out, err := Handle(r); err != nil {
-//		t.Fatal(err)
-//	} else {
-//		t.Log(out)
-//	}
-//}
-//
+
+func TestFindOne200(t *testing.T) {
+	e := credential.Entity{"hello@gmail.com", "Pass123!", ""}
+	r := request.Entity{
+		Id:      e.Id,
+		Type:    "*credential.Entity",
+		Table:   "credential",
+		Keyword: "find-one",
+		Result:  e,
+	}
+	if out, err := Handle(r); err != nil {
+		t.Fatal(err)
+	} else {
+		t.Log(out)
+	}
+}
+
 //func TestFindMany200(t *testing.T) {
 //	e := product.Entity{}
 //	r := request.Entity{
