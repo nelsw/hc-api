@@ -6,28 +6,42 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
-	"os"
 	"sam-app/pkg/client/faas/client"
-	"sam-app/pkg/client/repo"
 	"sam-app/pkg/factory/apigwp"
 	"sam-app/pkg/model/credential"
 )
 
-var table = os.Getenv("TABLE")
-
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	var e credential.Entity
+	e := credential.Entity{}
 
 	ip, err := apigwp.Request(r, &e)
 	if err != nil {
 		return apigwp.Response(400, err)
 	}
 
-	p := e.Password
-	if err := repo.FindById(table, e.Id, &e); err != nil {
-		return apigwp.Response(500, err)
-	} else if err := bcrypt.CompareHashAndPassword([]byte(e.Password), []byte(p)); err != nil {
+	p := []byte(e.Password)
+
+	i := map[string]interface{}{
+		"Table":   "credential",
+		"Type":    "*credential.Entity",
+		"Keyword": "find-one",
+		"Id":      e.Id,
+		"Result":  e,
+	}
+
+	code, body := client.CallIt(i, "repoHandler")
+	_ = json.Unmarshal([]byte(body), &e)
+
+	if e.UserId == "" {
+		code = 404
+	}
+
+	if code != 200 {
+		return apigwp.Response(code, body)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(e.Password), p); err != nil {
 		return apigwp.Response(401, err)
 	}
 

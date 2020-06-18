@@ -29,6 +29,17 @@ func TestHandleLogin401(t *testing.T) {
 	}
 }
 
+func TestHandleLogin404(t *testing.T) {
+	credentials := credential.Entity{"hello@yahoo.com", "Pass1234!", ""}
+	b, _ := json.Marshal(&credentials)
+	r := events.APIGatewayProxyRequest{Body: string(b)}
+	if out, _ := Handle(r); out.StatusCode != 404 {
+		t.Fail()
+	} else {
+		t.Log(out)
+	}
+}
+
 func TestHandleBadRequestUsername(t *testing.T) {
 	credentials := credential.Entity{"foo", "Pass1234!", ""}
 	b, _ := json.Marshal(&credentials)
