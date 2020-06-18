@@ -18,7 +18,7 @@ type Entity struct {
 	Stock       int      `json:"stock"`
 }
 
-var table = os.Getenv("TABLE")
+var table = os.Getenv("PRODUCT_TABLE")
 
 func (e *Entity) ID() string {
 	return e.Id
