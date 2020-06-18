@@ -17,19 +17,11 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	ip, err := apigwp.Request(r, &e)
 	if err != nil {
-		return apigwp.Response(400, err)
+		return apigwp.HandleResponse(events.APIGatewayProxyResponse{StatusCode: 400, Headers: r.Headers, Body: err.Error()})
 	}
 
 	p := []byte(e.Password)
-
-	i := map[string]interface{}{
-		"Table":   "credential",
-		"Type":    "*credential.Entity",
-		"Keyword": "find-one",
-		"Id":      e.Id,
-		"Result":  e,
-	}
-
+	i := map[string]interface{}{"Table": "credential", "Type": "*credential.Entity", "Keyword": "find-one", "Id": e.Id}
 	code, body := client.CallIt(i, "repoHandler")
 	_ = json.Unmarshal([]byte(body), &e)
 
@@ -38,27 +30,18 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 
 	if code != 200 {
-		return apigwp.Response(code, body)
+		return apigwp.HandleResponse(events.APIGatewayProxyResponse{StatusCode: code, Headers: r.Headers, Body: body})
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(e.Password), p); err != nil {
-		return apigwp.Response(401, err)
+		return apigwp.HandleResponse(events.APIGatewayProxyResponse{StatusCode: 401, Headers: r.Headers, Body: err.Error()})
 	}
 
-	claims := jwt.StandardClaims{
-		ip,
-		0,
-		e.UserId,
-		0,
-		"credentialHandler",
-		0,
-		"login",
-	}
+	claims := jwt.StandardClaims{ip, 0, e.UserId, 0, "credentialHandler", 0, "login"}
 	b, _ := json.Marshal(&claims)
 
-	authorizationRequest := events.APIGatewayProxyRequest{Path: "authorize", Body: string(b)}
-
-	return apigwp.Response(client.CallIt(authorizationRequest, "tokenHandler"))
+	authRequest := events.APIGatewayProxyRequest{Path: "authorize", Body: string(b)}
+	return apigwp.HandleResponse(client.Invoke("tokenHandler", authRequest))
 }
 
 func main() {
