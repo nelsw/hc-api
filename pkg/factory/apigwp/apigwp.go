@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"os"
 )
 
 // Required to transmit messages when CORS enabled in API Gateway.
 var h = map[string]string{"Access-Control-Allow-Origin": "*"}
-var stage = os.Getenv("STAGE")
 
 func body(vv ...interface{}) string {
 	if len(vv) < 1 {
@@ -32,7 +30,13 @@ func body(vv ...interface{}) string {
 }
 
 func LogRequest(r events.APIGatewayProxyRequest) {
-	fmt.Printf("PROXY REQUEST [%v]\n", r)
+	fmt.Printf("request: {\n"+
+		"\theaders: %v\n"+
+		"\tpath: %s\n"+
+		"\tquery_string_parameters: %v\n"+
+		"\tbody: %s\n"+
+		"}\n",
+		r.Headers, r.Path, r.QueryStringParameters, r.Body)
 }
 
 // BaseRequest attempts to unmarshal the wrapper body data into the given GoodValidator.
@@ -43,8 +47,6 @@ func Request(r events.APIGatewayProxyRequest, i request.Validator) (string, erro
 		return "", err
 	} else if err := i.Validate(); err != nil {
 		return "", err
-	} else if stage == "TEST" || stage == "DEV" {
-		return "127.0.0.1", nil
 	} else {
 		return r.RequestContext.Identity.SourceIP, nil
 	}
@@ -61,6 +63,11 @@ func ProxyResponse(i int, headers map[string]string, vv ...interface{}) (events.
 		headers[k] = v
 	}
 	body := body(vv)
-	fmt.Printf("PROXY RESPONSE | CODE=[%d] HEADERS=[%v] BODY=[%s]\n", i, headers, body)
+	fmt.Printf("response: {\n"+
+		"\tcode: %d\n"+
+		"\theaders: %v\n"+
+		"\tbody: %s\n"+
+		"}\n",
+		i, headers, body)
 	return events.APIGatewayProxyResponse{StatusCode: i, Headers: headers, Body: body}, nil
 }
