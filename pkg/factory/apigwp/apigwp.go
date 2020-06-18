@@ -25,7 +25,6 @@ const resFmt = "response: {\n" +
 	"}\n"
 
 func body(v interface{}) string {
-	fmt.Printf("\nBODY %v\n", v)
 	if b, ok := v.([]byte); ok {
 		return string(b)
 	} else if s, ok := v.(string); ok {
