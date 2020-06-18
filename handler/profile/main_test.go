@@ -19,8 +19,8 @@ func TestHandleSave200(t *testing.T) {
 	b, _ := json.Marshal(&e)
 	r := events.APIGatewayProxyRequest{
 		Path: "save",
-		QueryStringParameters: map[string]string{
-			"token": "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJBdWRpZW5jZSBWYWx1ZSIsImV4cCI6MTU5MTE4MTI3MiwianRpIjoiMmY2YTdmM2YtYTQ2OS0xMWVhLWE2MWItNzY3ZTBlODViOTk1IiwiaWF0IjoxNTkxMDk0ODcyLCJpc3MiOiJJc3N1ZXIgVmFsdWUiLCJzdWIiOiJTdWJqZWN0IFZhbHVlIn0.wuFOf1mbNkgnPmz3_iIl-6UFlKw9AkO4IKkvDqFT4Tg; Expires=Wed, 03 Jun 2020 10:47:52 GMT",
+		Headers: map[string]string{
+			"Authorize": test.CookieValid,
 		},
 		Body: string(b),
 	}
@@ -29,7 +29,7 @@ func TestHandleSave200(t *testing.T) {
 	}
 }
 
-func TestHandleBadRequestNoToken400(t *testing.T) {
+func TestHandleBadNoToken401(t *testing.T) {
 	e := profile.Entity{
 		Id:        test.UserId,
 		Email:     "hello@gmail.com",
@@ -40,9 +40,33 @@ func TestHandleBadRequestNoToken400(t *testing.T) {
 	b, _ := json.Marshal(&e)
 	r := events.APIGatewayProxyRequest{
 		Path: "save",
+		Headers: map[string]string{
+			"Authorize": "foo",
+		},
 		Body: string(b),
 	}
-	if out, _ := Handle(r); out.StatusCode != 400 {
+	if out, _ := Handle(r); out.StatusCode != 401 {
+		t.Fail()
+	}
+}
+
+func TestHandleBadPath(t *testing.T) {
+	e := profile.Entity{
+		Id:        test.UserId,
+		Email:     "hello@gmail.com",
+		FirstName: "Jimmy",
+		LastName:  "Kowalski",
+		Phone:     "555-555-5555",
+	}
+	b, _ := json.Marshal(&e)
+	r := events.APIGatewayProxyRequest{
+		Path: "foo",
+		Headers: map[string]string{
+			"Authorize": test.CookieValid,
+		},
+		Body: string(b),
+	}
+	if out, _ := Handle(r); out.StatusCode != 200 {
 		t.Fail()
 	}
 }
