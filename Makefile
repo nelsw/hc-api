@@ -19,11 +19,11 @@ invoke: package
 
 # Updates an AWS λƒ; cleans afterwards.
 update: package
-	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} sh scripts/update-function.sh clean
+	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} ENV="{\"Variables\":{}}" sh scripts/update-function.sh clean
 
 # Creates an AWS λƒ.
 create: package
-	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} sh scripts/create-function.sh
+	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} ENV="{\"Variables\":{}}" sh scripts/create-function.sh
 
 # Disallow any parallelism (-j) for Make. This is necessary since some commands during the build process create
 # temporary files that collide under parallel conditions.
