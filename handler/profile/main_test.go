@@ -66,7 +66,7 @@ func TestHandleBadPath(t *testing.T) {
 		},
 		Body: string(b),
 	}
-	if out, _ := Handle(r); out.StatusCode != 200 {
+	if out, _ := Handle(r); out.StatusCode != 400 {
 		t.Fail()
 	}
 }
