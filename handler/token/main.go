@@ -60,7 +60,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 				return apigwp.Response(401, err)
 			}
 			newToken := issue(&claims)
-			return apigwp.ProxyResponse(200, map[string]string{"Authorize": token}, newToken)
+			return apigwp.ProxyResponse(200, map[string]string{"Authorize": newToken}, newToken)
 		}
 
 	case "authorize":
