@@ -9,13 +9,23 @@ import (
 )
 
 // Required to transmit messages when CORS enabled in API Gateway.
-var h = map[string]string{"Access-Control-Allow-Origin": "*"}
+var defaultHeaders = map[string]string{"Access-Control-Allow-Origin": "*"}
 
-func body(vv ...interface{}) string {
-	if len(vv) < 1 {
-		return ""
-	}
-	v := vv[0]
+const reqFmt = "request: {\n" +
+	"\theaders: %v\n" +
+	"\tpath: %s\n" +
+	"\tquery_string_parameters: %v\n" +
+	"\tbody: %s\n" +
+	"}\n"
+
+const resFmt = "response: {\n" +
+	"\tcode: %d\n" +
+	"\theaders: %v\n" +
+	"\tbody: %s\n" +
+	"}\n"
+
+func body(v interface{}) string {
+	fmt.Printf("\nBODY %v\n", v)
 	if b, ok := v.([]byte); ok {
 		return string(b)
 	} else if s, ok := v.(string); ok {
@@ -30,13 +40,19 @@ func body(vv ...interface{}) string {
 }
 
 func LogRequest(r events.APIGatewayProxyRequest) {
-	fmt.Printf("request: {\n"+
-		"\theaders: %v\n"+
-		"\tpath: %s\n"+
-		"\tquery_string_parameters: %v\n"+
-		"\tbody: %s\n"+
-		"}\n",
-		r.Headers, r.Path, r.QueryStringParameters, r.Body)
+	fmt.Printf(reqFmt, r.Headers, r.Path, r.QueryStringParameters, r.Body)
+}
+
+func HandleResponse(r events.APIGatewayProxyResponse) (events.APIGatewayProxyResponse, error) {
+	if r.Headers == nil {
+		r.Headers = defaultHeaders
+	} else {
+		for k, v := range defaultHeaders {
+			r.Headers[k] = v
+		}
+	}
+	fmt.Printf(resFmt, r.StatusCode, r.Headers, r.Body)
+	return r, nil
 }
 
 // BaseRequest attempts to unmarshal the wrapper body data into the given GoodValidator.
@@ -55,19 +71,13 @@ func Request(r events.APIGatewayProxyRequest, i request.Validator) (string, erro
 // Response returns an API Gateway Proxy Response with a nil error to provide detailed status codes and response bodies.
 // While a status code must be provided, further arguments are recognized with reflection but not required.
 func Response(i int, vv ...interface{}) (events.APIGatewayProxyResponse, error) {
-	return ProxyResponse(i, h, vv)
+	return ProxyResponse(i, defaultHeaders, vv)
 }
 
-func ProxyResponse(i int, headers map[string]string, vv ...interface{}) (events.APIGatewayProxyResponse, error) {
-	for k, v := range h {
-		headers[k] = v
+func ProxyResponse(i int, h map[string]string, vv ...interface{}) (events.APIGatewayProxyResponse, error) {
+	if len(vv) < 1 {
+		return HandleResponse(events.APIGatewayProxyResponse{StatusCode: i, Headers: h})
 	}
-	body := body(vv)
-	fmt.Printf("response: {\n"+
-		"\tcode: %d\n"+
-		"\theaders: %v\n"+
-		"\tbody: %s\n"+
-		"}\n",
-		i, headers, body)
-	return events.APIGatewayProxyResponse{StatusCode: i, Headers: headers, Body: body}, nil
+	body := body(vv[0])
+	return HandleResponse(events.APIGatewayProxyResponse{StatusCode: i, Headers: h, Body: body})
 }
