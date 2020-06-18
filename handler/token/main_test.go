@@ -72,6 +72,8 @@ func TestHandleAuthorize400(t *testing.T) {
 	r := events.APIGatewayProxyRequest{Path: "authorize"}
 	if out, _ := Handle(r); out.StatusCode != 400 {
 		t.Fail()
+	} else {
+		t.Log(out)
 	}
 }
 
@@ -79,13 +81,17 @@ func TestHandleAuthenticate401(t *testing.T) {
 	r := events.APIGatewayProxyRequest{Path: "authenticate", Headers: map[string]string{"Authorize": "token=foo"}}
 	if out, _ := Handle(r); out.StatusCode != 401 {
 		t.Fail()
+	} else {
+		t.Log(out)
 	}
 }
 
 func TestHandleInspect401(t *testing.T) {
-	r := events.APIGatewayProxyRequest{Path: "inspect", Headers: map[string]string{"Authorize": "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJBdWRpZW5jZSBWYWx1ZSIsImV4cCI6MTU5MTA5MDYzMSwianRpIjoiSWQgVmFsdWUiLCJpYXQiOjE1OTEwOTA2MDcsImlzcyI6Iklzc3VlciBWYWx1ZSIsInN1YiI6IlN1YmplY3QgVmFsdWUifQ.fPchrVG8PIi6txWi9L1VkKOTaHwEfRCwQ1buMLIR_lc; Expires=Tue, 02 Jun 2020 09:37:11 GMT"}}
+	r := events.APIGatewayProxyRequest{Path: "inspect", Headers: map[string]string{"Authorize": test.CookieExpired}}
 	if out, _ := Handle(r); out.StatusCode != 401 {
 		t.Fail()
+	} else {
+		t.Log(out)
 	}
 }
 
@@ -93,6 +99,8 @@ func TestHandleBadRequest400(t *testing.T) {
 	r := events.APIGatewayProxyRequest{}
 	if out, _ := Handle(r); out.StatusCode != 400 {
 		t.Fail()
+	} else {
+		t.Log(out)
 	}
 }
 
