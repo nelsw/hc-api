@@ -23,7 +23,7 @@ update: package
 
 # Creates an AWS λƒ.
 create: package
-	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} ENV="{\"Variables\":{}}" sh scripts/create-function.sh
+	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} ENV="{\"Variables\":{}}" sh scripts/create-function.sh clean
 
 # Disallow any parallelism (-j) for Make. This is necessary since some commands during the build process create
 # temporary files that collide under parallel conditions.
