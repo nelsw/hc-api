@@ -2,6 +2,7 @@
 package apigwp
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
@@ -12,10 +13,13 @@ import (
 var defaultHeaders = map[string]string{"Access-Control-Allow-Origin": "*"}
 
 const reqFmt = "request: {\n" +
-	"\theaders: %v\n" +
+	"\tmethod: %s\n" +
+	"\tresource: %s\n" +
 	"\tpath: %s\n" +
+	"\theaders: %v\n" +
 	"\tquery_string_parameters: %v\n" +
 	"\tbody: %s\n" +
+	"\tbase64: %v\n" +
 	"}\n"
 
 const resFmt = "response: {\n" +
@@ -39,7 +43,7 @@ func body(v interface{}) string {
 }
 
 func LogRequest(r events.APIGatewayProxyRequest) {
-	fmt.Printf(reqFmt, r.Headers, r.Path, r.QueryStringParameters, r.Body)
+	fmt.Printf(reqFmt, r.HTTPMethod, r.Resource, r.Path, r.Headers, r.QueryStringParameters, r.Body, r.IsBase64Encoded)
 }
 
 func HandleResponse(r events.APIGatewayProxyResponse) (events.APIGatewayProxyResponse, error) {
@@ -58,7 +62,13 @@ func HandleResponse(r events.APIGatewayProxyResponse) (events.APIGatewayProxyRes
 // Returns nil unless an error occurs during interface deserialization or validation.
 func Request(r events.APIGatewayProxyRequest, i request.Validator) (string, error) {
 	LogRequest(r)
-	if err := json.Unmarshal([]byte(r.Body), &i); err != nil {
+
+	body := []byte(r.Body)
+	if r.IsBase64Encoded {
+		body, _ = base64.StdEncoding.DecodeString(r.Body)
+	}
+
+	if err := json.Unmarshal(body, &i); err != nil {
 		return "", err
 	} else if err := i.Validate(); err != nil {
 		return "", err
