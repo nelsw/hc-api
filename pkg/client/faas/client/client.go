@@ -12,6 +12,11 @@ import (
 
 var l *lambda.Lambda
 
+type RepoError struct {
+	Message string `json:"errorMessage"`
+	Type    string `json:"errorType"`
+}
+
 func init() {
 	if sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION")),
@@ -23,11 +28,16 @@ func init() {
 }
 
 func CallIt(i interface{}, s string) (int, string) {
+	e := RepoError{}
 	b, _ := json.Marshal(&i)
 	input := lambda.InvokeInput{FunctionName: aws.String(s), Payload: b}
 	if out, err := l.Invoke(&input); err != nil {
 		return 500, err.Error()
 	} else {
+		_ = json.Unmarshal(out.Payload, &e)
+		if e.Message != "" {
+			return 400, e.Message
+		}
 		return int(*out.StatusCode), string(out.Payload)
 	}
 }
@@ -37,13 +47,9 @@ func Invoke(f string, i interface{}) events.APIGatewayProxyResponse {
 	b, _ := json.Marshal(&i)
 	if output, err := l.Invoke(&lambda.InvokeInput{FunctionName: aws.String(f), Payload: b}); err != nil {
 		r.Body = err.Error()
-	} else if *output.StatusCode != 200 {
-		r.Body = string(output.Payload)
 	} else if err := json.Unmarshal(output.Payload, &r); err != nil {
-		r.Body = err.Error()
-	} else {
-		_ = json.Unmarshal([]byte(r.Body), &r) // try it again jic
-		r.StatusCode = 200
+		r.StatusCode = int(*output.StatusCode)
+		r.Body = string(output.Payload)
 	}
 	return r
 }

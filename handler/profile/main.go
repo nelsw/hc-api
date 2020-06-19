@@ -5,14 +5,10 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/dgrijalva/jwt-go"
-	"os"
 	"sam-app/pkg/client/faas/client"
 	"sam-app/pkg/factory/apigwp"
 	"sam-app/pkg/model/profile"
 )
-
-var table = os.Getenv("PROFILE_TABLE")
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
@@ -22,19 +18,19 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return apigwp.Response(400, err)
 	}
 
-	authenticate := events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers}
-	authResponse := client.Invoke("tokenHandler", authenticate)
+	authResponse := client.Invoke("tokenHandler", events.APIGatewayProxyRequest{Path: "inspect", Headers: r.Headers})
 	if authResponse.StatusCode != 200 {
-		return apigwp.Response(authResponse.StatusCode, authResponse.Body)
+		return apigwp.HandleResponse(authResponse)
 	}
-	claims := jwt.StandardClaims{}
+
+	claims := map[string]interface{}{"jti": ""}
 	_ = json.Unmarshal([]byte(authResponse.Body), &claims)
 
 	switch r.Path {
 
 	case "save":
 
-		m := map[string]interface{}{"id": claims.Id, "table": table, "type": "*profile.Entity", "keyword": "save", "result": &e}
+		m := map[string]interface{}{"id": claims["jti"], "table": "profile", "type": "*profile.Entity", "keyword": "save", "result": &e}
 		return apigwp.Response(client.CallIt(&m, "repoHandler"))
 	}
 
