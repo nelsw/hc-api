@@ -27,3 +27,7 @@ func (e *Entity) ID() string {
 func (*Entity) TableName() string {
 	return table
 }
+
+func (e *Entity) Validate() error {
+	return nil
+}

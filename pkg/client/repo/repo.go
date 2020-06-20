@@ -44,27 +44,6 @@ func Save(id string, i interface{}) error {
 	}, i)
 }
 
-func SaveOne(i Storable) error {
-	return do(request.Entity{
-		Id:         i.ID(),
-		Type:       typeOf(i),
-		Table:      i.TableName(),
-		Ids:        nil,
-		Attributes: nil,
-		Keyword:    "save",
-		Result:     i,
-	}, i)
-}
-
-func FindOne(i Storable) error {
-	return do(request.Entity{
-		Table:   i.TableName(),
-		Id:      i.ID(),
-		Keyword: "find-one",
-		Type:    typeOf(i),
-	}, i)
-}
-
 func FindByIds(i interface{}, ids []string) ([]byte, error) {
 	r := request.Entity{
 		Table:   typeName(i),
@@ -74,28 +53,6 @@ func FindByIds(i interface{}, ids []string) ([]byte, error) {
 	}
 	payload, _ := json.Marshal(&r)
 	return InvokeRaw(payload, functionName)
-}
-
-func FindMany(i Storable, ids []string) ([]byte, error) {
-	r := request.Entity{
-		Table:   i.TableName(),
-		Ids:     ids,
-		Keyword: "find-many",
-		Type:    typeOf(i),
-	}
-	payload, _ := json.Marshal(&r)
-	return InvokeRaw(payload, functionName)
-}
-
-func Remove(i Storable, id string) error {
-	r := request.Entity{
-		Id:      id,
-		Table:   i.TableName(),
-		Keyword: "remove",
-	}
-	payload, _ := json.Marshal(&r)
-	_, err := InvokeRaw(payload, functionName)
-	return err
 }
 
 func do(r request.Entity, i interface{}) error {
