@@ -6,11 +6,14 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
+	"net/http"
 	"os"
+	"regexp"
 	"sam-app/pkg/factory/apigwp"
 	"time"
 )
 
+var regex = regexp.MustCompile(`(.*)(token=)(.*)(;.*)`)
 var jwtKey = []byte(os.Getenv("JWT_KEY"))
 
 func keyFunc(_ *jwt.Token) (interface{}, error) {
@@ -18,9 +21,7 @@ func keyFunc(_ *jwt.Token) (interface{}, error) {
 }
 
 func authenticate(token string, claims *jwt.StandardClaims) error {
-	if jwtToken, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil {
-		return err // Either the token expired or signatures do not match.
-	} else if !jwtToken.Valid {
+	if jwtToken, err := jwt.ParseWithClaims(token, claims, keyFunc); err != nil || !jwtToken.Valid {
 		return fmt.Errorf("bad token, invalid segments or expired\n")
 	} else {
 		return nil
@@ -34,7 +35,13 @@ func issue(claims *jwt.StandardClaims) string {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	str, _ := token.SignedString(jwtKey)
-	return str
+	cookie := &http.Cookie{
+		Name:    "token",
+		Value:   str,
+		Expires: time.Unix(claims.ExpiresAt, 0),
+	}
+
+	return cookie.String()
 }
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -45,12 +52,13 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	case "authenticate":
 		if token, ok := r.Headers["Authorize"]; ok {
+			tokenString := regex.ReplaceAllString(token, `$3`)
 			claims := jwt.StandardClaims{}
-			if err := authenticate(token, &claims); err != nil {
+			if err := authenticate(tokenString, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
 			newToken := issue(&claims)
-			return apigwp.ProxyResponse(200, map[string]string{"Authorize": newToken}, newToken)
+			return apigwp.ProxyResponse(200, map[string]string{"Authorize": token}, newToken)
 		}
 
 	case "authorize":
@@ -63,8 +71,9 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	case "inspect":
 		if token, ok := r.Headers["Authorize"]; ok {
+			tokenString := regex.ReplaceAllString(token, `$3`)
 			claims := jwt.StandardClaims{}
-			if err := authenticate(token, &claims); err != nil {
+			if err := authenticate(tokenString, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
 			return apigwp.ProxyResponse(200, map[string]string{"Authorize": issue(&claims)}, &claims)
