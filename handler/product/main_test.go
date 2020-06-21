@@ -40,7 +40,7 @@ func TestHandleSaveOne(t *testing.T) {
 		Name:        "Name Value",
 		Description: "Description Value",
 		Price:       99999999999,
-		ImageUrls:   []string{"https://www.cbdrevolution.com/media/catalog/product/cache/3b283e46e55bcd65947f5adfccf62c98/c/r/cream_345.jpg"},
+		Images:      []string{"https://www.cbdrevolution.com/media/catalog/product/cache/3b283e46e55bcd65947f5adfccf62c98/c/r/cream_345.jpg"},
 		OwnerId:     "OwnerId Value",
 		AddressId:   "AddressId Value",
 		Unit:        "Unit Value",

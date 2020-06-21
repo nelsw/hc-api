@@ -10,7 +10,7 @@ type Entity struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Price       int64    `json:"price"`
-	ImageUrls   []string `json:"image_urls"`
+	Images      []string `json:"images"`
 	OwnerId     string   `json:"owner_id"`
 	AddressId   string   `json:"address_id"` // shipping departure location
 	Unit        string   `json:"unit"`       // LB, OZ, etc.
