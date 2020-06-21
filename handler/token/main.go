@@ -6,14 +6,11 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
-	"net/http"
 	"os"
-	"regexp"
 	"sam-app/pkg/factory/apigwp"
 	"time"
 )
 
-var regex = regexp.MustCompile(`(.*)(token=)(.*)(;.*)`)
 var jwtKey = []byte(os.Getenv("JWT_KEY"))
 
 func keyFunc(_ *jwt.Token) (interface{}, error) {
@@ -37,13 +34,7 @@ func issue(claims *jwt.StandardClaims) string {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	str, _ := token.SignedString(jwtKey)
-	cookie := &http.Cookie{
-		Name:    "token",
-		Value:   str,
-		Expires: time.Unix(claims.ExpiresAt, 0),
-	}
-
-	return cookie.String()
+	return str
 }
 
 func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -54,9 +45,8 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	case "authenticate":
 		if token, ok := r.Headers["Authorize"]; ok {
-			tokenString := regex.ReplaceAllString(token, `$3`)
 			claims := jwt.StandardClaims{}
-			if err := authenticate(tokenString, &claims); err != nil {
+			if err := authenticate(token, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
 			newToken := issue(&claims)
@@ -73,9 +63,8 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	case "inspect":
 		if token, ok := r.Headers["Authorize"]; ok {
-			tokenString := regex.ReplaceAllString(token, `$3`)
 			claims := jwt.StandardClaims{}
-			if err := authenticate(tokenString, &claims); err != nil {
+			if err := authenticate(token, &claims); err != nil {
 				return apigwp.Response(401, err)
 			}
 			return apigwp.ProxyResponse(200, map[string]string{"Authorize": issue(&claims)}, &claims)
