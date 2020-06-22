@@ -12,13 +12,14 @@ type Entity struct {
 }
 
 type Option struct {
+	Id      string   `json:"id"`
+	Parent  string   `json:"parent"`
 	Price   int64    `json:"price"`   // 7900 = $79.00, stripe thinks it makes cents
 	Weight  int      `json:"weight"`  // 170 = 1.7, to avoid decimals entirely
 	Label   string   `json:"label"`   // oz, lb, kilo, ton, w/e
 	Stock   int      `json:"stock"`   // quantity available
 	Address string   `json:"address"` // shipping departure location
 	Images  []string `json:"images"`  // urls
-	// currency coming soon, existing builtins do not support crypto
 }
 
 func (e *Entity) Validate() error {

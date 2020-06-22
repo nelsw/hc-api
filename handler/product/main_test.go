@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/google/uuid"
 	"math/rand"
 	"sam-app/pkg/model/product"
 	"sam-app/test"
@@ -33,16 +34,19 @@ func TestHandleFindOne(t *testing.T) {
 }
 
 func TestHandleSaveOne(t *testing.T) {
+	id := "2de39778-a48a-11ea-80e2-de675d5700ee"
 	data, _ := json.Marshal(&product.Entity{
-		"TestHandleDeleteOne",
+		id,
 		"OwnerId Value",
 		"CBD Revolution",
 		"Topical",
-		"Soothe Skin Therapy Lotion",
-		"Ideal for all skin types, perfectly balanced for use anytime. Especially effective after bathing and before engaging in outdoor activities. Deeply hydrates to alleviate itching.",
+		"Soothe Facial Cleanser",
+		"Ideal for all skin types including sensitive and mature skin; leaves skin smooth and supple.",
 		"https://www.cbdrevolution.com/media/catalog/product/cache/3b283e46e55bcd65947f5adfccf62c98/s/k/skin_345.jpg",
 		[]product.Option{
 			{
+				uuid.New().String(),
+				id,
 				3495,
 				170,
 				"oz",
