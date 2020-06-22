@@ -26,7 +26,7 @@ func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	claims := map[string]interface{}{"jti": ""}
 	_ = json.Unmarshal([]byte(authResponse.Body), &claims)
 
-	switch r.Path {
+	switch r.QueryStringParameters["path"] {
 
 	case "save":
 
