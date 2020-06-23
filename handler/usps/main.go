@@ -1,13 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"sam-app/pkg/client/faas/client"
+	"sam-app/pkg/factory/apigwp"
 	"sam-app/pkg/model/usps"
 	"strings"
 )
@@ -17,69 +21,66 @@ const (
 	RateRequestApi = "http://production.shippingapis.com/ShippingAPI.dll?API=RateV4&XML="
 )
 
-var (
-	uid     = os.Getenv("USPS_USER_ID")
-	ErrOp   = fmt.Errorf("bad request\n")
-	ErrHttp = fmt.Errorf("ERROR - unsuccessful http.Get\n")
-	ErrIo   = fmt.Errorf("ERROR - unable to read response body\n")
-)
+var uid = os.Getenv("USPS_USER_ID")
+
+func getXML(url string) ([]byte, error) {
+	resp, _ := http.Get(url)
+	data, err := ioutil.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	return data, err
+}
 
 // USPS Handler can verify and validation (entity) or perform a rate request.
-func Handle(request usps.Request) (interface{}, error) {
+func Handle(r events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
-	if request.Op == "validate" {
-		v := usps.AddressValidateRequest{uid, "1", request.Address}
+	apigwp.LogRequest(r)
 
-		inBytes, _ := xml.Marshal(&v)
+	authResponse := client.Invoke("tokenHandler", events.APIGatewayProxyRequest{Path: "authenticate", Headers: r.Headers})
+	if authResponse.StatusCode != 200 {
+		return apigwp.HandleResponse(authResponse)
+	}
+
+	switch r.QueryStringParameters["path"] {
+
+	case "validate":
+
+		var a usps.Address
+		_ = json.Unmarshal([]byte(r.Body), &a)
+
+		inBytes, _ := xml.Marshal(&usps.AddressValidateRequest{uid, "1", a})
 
 		outBytes, _ := getXML(ValidateApi + url.PathEscape(string(inBytes)))
 
 		var out = usps.AddressValidateResponse{}
 		_ = xml.Unmarshal(outBytes, &out)
 
-		return out.Address, nil
-	}
+		return apigwp.ProxyResponse(200, r.Headers, out.Address)
 
-	if request.Op == "rate" {
-		for n, p := range request.Packages {
+	case "rate":
+		var pp []usps.PackageRequest
+		_ = json.Unmarshal([]byte(r.Body), &pp)
 
+		for i, p := range pp {
 			p.Service = "PRIORITY"
 			p.Container = "LG FLAT RATE BOX"
 			p.Machinable = "TRUE"
-			request.Packages[n] = p
+			pp[i] = p
 		}
 
-		in := usps.RateV4Request{uid, "2", request.Packages}
-
-		inBytes, _ := xml.Marshal(&in)
+		inBytes, _ := xml.Marshal(&usps.RateV4Request{uid, "2", pp})
 		outBytes, _ := getXML(RateRequestApi + url.PathEscape(string(inBytes)))
 
 		var out usps.RateV4Response
 		_ = xml.Unmarshal(outBytes, &out)
 
-		var k, v string
 		rates := map[string]map[string]map[string]string{}
 		for _, p := range out.Packages {
-			k = strings.Split(p.Postage.Type, "&")[0]
-			v = p.Postage.Price
-			rates[p.Id] = map[string]map[string]string{"USPS": {k: v}}
+			rates[p.Id] = map[string]map[string]string{"USPS": {strings.Split(p.Postage.Type, "&")[0]: p.Postage.Price}}
 		}
-
-		return rates, nil
+		return apigwp.ProxyResponse(200, r.Headers, rates)
 	}
 
-	return nil, ErrOp
-}
-
-func getXML(url string) ([]byte, error) {
-	if resp, err := http.Get(url); err != nil || resp.StatusCode != 200 {
-		return nil, ErrHttp
-	} else if data, err := ioutil.ReadAll(resp.Body); err != nil {
-		return nil, ErrIo
-	} else {
-		_ = resp.Body.Close()
-		return data, nil
-	}
+	return apigwp.Response(400, fmt.Errorf("nothing returned for [%v].\n", r))
 }
 
 func main() {
