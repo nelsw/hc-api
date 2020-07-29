@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -35,6 +36,7 @@ func FindById(table, id string, i interface{}) error {
 	} else if err := dynamodbattribute.UnmarshalMap(out.Item, &i); err != nil {
 		return err
 	} else {
+		fmt.Println(out)
 		return nil
 	}
 }

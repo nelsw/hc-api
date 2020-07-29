@@ -15,7 +15,6 @@ type Address struct {
 }
 
 type Request struct {
-	Op       string           `json:"op"`
 	Address  Address          `json:"address"`
 	Packages []PackageRequest `json:"packages"`
 }

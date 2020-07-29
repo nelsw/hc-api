@@ -1,6 +1,6 @@
 # Cleans the project directory by removing temporary files and build artifacts.
 clean:
-	@OUTPUTS=( "main.zip" "main" "cp.out" "tmp.yml" "tmp.json" "file.puml" ) sh scripts/clean-project.sh
+	@OUTPUTS=( "main.zip" "main" "cp.out" "tmp.yml" "tmp.json" "file.puml" "request.json" "template.json" ) sh scripts/clean-project.sh
 
 # Tests the entire project and outputs a coverage item.
 test:
@@ -8,7 +8,7 @@ test:
 
 # Builds the source executable from a specified path.
 build:
-	GOOS=linux GOARCH=amd64 go build -o main ./cmd/${DOMAIN}/main.go
+	GOOS=linux GOARCH=amd64 go build -o main ./handler/${DOMAIN}/main.go
 
 # Packages the executable into a zip file with flags -9, compress better, and -r, recurse into directories.
 package: build
@@ -19,11 +19,11 @@ invoke: package
 
 # Updates an AWS λƒ; cleans afterwards.
 update: package
-	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} sh scripts/update-function.sh clean
+	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} ENV="{\"Variables\":{}}" sh scripts/update-function.sh clean
 
 # Creates an AWS λƒ.
 create: package
-	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} sh scripts/create-function.sh
+	@FUNCTION=${FUNCTION} ROLE=${ROLE} DOMAIN=${DOMAIN} ENV="{\"Variables\":{}}" sh scripts/create-function.sh clean
 
 # Disallow any parallelism (-j) for Make. This is necessary since some commands during the build process create
 # temporary files that collide under parallel conditions.

@@ -3,23 +3,40 @@ package repo
 
 import (
 	"encoding/json"
-	"hc-api/pkg/client/faas/client"
-	"hc-api/pkg/model/request"
-	"hc-api/pkg/util"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"log"
+	"os"
+	"reflect"
+	"sam-app/pkg/model/request"
+	"strings"
 )
 
-const functionName = "hcRepoHandler"
+const functionName = "repoHandler"
+
+var l *lambda.Lambda
+
+func init() {
+	if sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(os.Getenv("AWS_REGION")),
+	}); err != nil {
+		log.Fatalf("Failed to connect to AWS: %s", err.Error())
+	} else {
+		l = lambda.New(sess)
+	}
+}
 
 type Storable interface {
 	TableName() string
 	ID() string
 }
 
-func SaveOne(i Storable) error {
+func Save(id string, i interface{}) error {
 	return do(request.Entity{
-		Id:         i.ID(),
-		Type:       util.TypeOf(i),
-		Table:      i.TableName(),
+		Id:         id,
+		Type:       typeOf(i),
+		Table:      typeName(i),
 		Ids:        nil,
 		Attributes: nil,
 		Keyword:    "save",
@@ -27,56 +44,41 @@ func SaveOne(i Storable) error {
 	}, i)
 }
 
-func FindOne(i Storable) error {
-	return do(request.Entity{
-		Table:   i.TableName(),
-		Id:      i.ID(),
-		Keyword: "find-one",
-		Type:    util.TypeOf(i),
-		Result:  i,
-	}, i)
-}
-
-func FindMany(i Storable, ids []string) ([]byte, error) {
+func FindByIds(i interface{}, ids []string) ([]byte, error) {
 	r := request.Entity{
-		Table:   i.TableName(),
+		Table:   typeName(i),
 		Ids:     ids,
 		Keyword: "find-many",
-		Type:    util.TypeOf(i),
+		Type:    typeOf(i),
 	}
 	payload, _ := json.Marshal(&r)
-	return client.InvokeRaw(payload, functionName)
-}
-
-func Add(i Storable, ids []string) error {
-	r := request.Entity{
-		Id:      i.ID(),
-		Table:   i.TableName(),
-		Ids:     ids,
-		Keyword: "add " + util.TypeName(i),
-	}
-	payload, _ := json.Marshal(&r)
-	_, err := client.InvokeRaw(payload, functionName)
-	return err
-}
-
-func Delete(i Storable, ids []string) error {
-	r := request.Entity{
-		Id:      i.ID(),
-		Table:   i.TableName(),
-		Ids:     ids,
-		Keyword: "delete " + util.TypeName(i),
-	}
-	payload, _ := json.Marshal(&r)
-	_, err := client.InvokeRaw(payload, functionName)
-	return err
+	return InvokeRaw(payload, functionName)
 }
 
 func do(r request.Entity, i interface{}) error {
 	payload, _ := json.Marshal(&r)
-	if b, err := client.InvokeRaw(payload, functionName); err != nil {
+	if b, err := InvokeRaw(payload, functionName); err != nil {
 		return err
 	} else {
 		return json.Unmarshal(b, &i)
+	}
+}
+
+func typeName(i interface{}) string {
+	return strings.Split(typeOf(i), ".")[0]
+}
+
+func typeOf(v interface{}) string {
+	return reflect.TypeOf(v).String()
+}
+
+func InvokeRaw(b []byte, s string) ([]byte, error) {
+	if out, err := l.Invoke(&lambda.InvokeInput{
+		FunctionName: aws.String(s),
+		Payload:      b,
+	}); err != nil {
+		return nil, err
+	} else {
+		return out.Payload, nil
 	}
 }

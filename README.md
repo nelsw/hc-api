@@ -2,6 +2,8 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/nelsw/sam-app)](https://goreportcard.com/report/github.com/nelsw/sam-app)
 [![GoDoc](https://godoc.org/github.com/nelsw/sam-app?status.svg)](https://godoc.org/github.com/nelsw/sam-app)
+[![Maintainability](https://api.codeclimate.com/v1/badges/6026f7d8dabf510ad254/maintainability)](https://codeclimate.com/github/nelsw/sam-app/maintainability)
+[![codebeat badge](https://codebeat.co/badges/64e5260f-ceb9-4aad-8048-44b980e9588e)](https://codebeat.co/projects/github-com-nelsw-sam-app-master)
 [![Release](https://img.shields.io/github/release/nelsw/sam-app.svg)](https://github.com/nelsw/sam-app/releases/latest)
 
 **A public API for member based eCommerce, using the AWS serverless application model, written in [go][^go].** 

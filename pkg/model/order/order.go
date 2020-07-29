@@ -1,17 +1,5 @@
 package order
 
-import (
-	"hc-api/pkg/model/token"
-	"os"
-)
-
-type Request struct {
-	Op  string   `json:"op"`
-	Ids []string `json:"ids"`
-	token.Value
-	Entity
-}
-
 type Entity struct {
 	Id        string    `json:"id"`
 	UserId    string    `json:"user_id"`
@@ -21,7 +9,7 @@ type Entity struct {
 }
 
 type Package struct {
-	Id string `json:"id"` // product id
+	Id string `json:"id"` // product id (?)
 
 	ProductPrice int64 `json:"product_price"`
 	ProductQty   int   `json:"product_qty"`
@@ -54,18 +42,4 @@ type Package struct {
 	ShipRate    int64  `json:"ship_rate"`
 
 	TotalPrice int64 `json:"total_price"`
-}
-
-var table = os.Getenv("ORDER_TABLE")
-
-func (e Entity) ID() string {
-	return e.Id
-}
-
-func (e *Entity) TableName() string {
-	return table
-}
-
-func (e *Entity) Validate() error {
-	return nil
 }
